@@ -12,6 +12,8 @@
 #include <zephyr.h>
 #include <usb/class/usb_audio.h>
 
+#define MIDI_BULK_SIZE 64
+
 // Audio Class-Specific Descriptor Types (audio10, A.4)
 #define CS_UNDEFINED     0x20
 #define CS_DEVICE        0x21
@@ -39,6 +41,22 @@
 #define JACK_EMBEDDED       0x01
 #define JACK_EXTERNAL       0x02
 
+
+struct usb_midi_if_descriptor {
+    struct usb_if_descriptor if0;
+    uint8_t cs_if0[];
+};
+
+// Class-Specific MS Interface Header Descriptor (midi10, 6.1.2.1)
+#define MIDI_CS_IF(...) \
+    7, \
+    CS_INTERFACE, \
+    MS_HEADER, \
+    0x01, 0x00, \
+    (7 + sizeof((uint8_t[]) {__VA_ARGS__})) >> 8, \
+    7 + sizeof((uint8_t[]) {__VA_ARGS__})
+
+
 // MIDI IN Jack Descriptor (midi10, 6.1.2.2)
 #define MIDI_JACKIN_DESCRIPTOR(bJackType, bJackID, iJack) \
     6, \
@@ -47,6 +65,7 @@
     (bJackType), \
     (bJackID), \
     (iJack)
+
 
 // MIDI OUT Jack Descriptor (midi10, 6.1.2.3)
 #define MIDI_JACKOUT_DESCRIPTOR(bJackType, bJackID, iJack, bNrInputPins, ...) \
@@ -59,64 +78,42 @@
     __VA_ARGS__, \
     (iJack)
 
-// Standard + class-specific MS Bulk Data Endpoint Descriptor (midi10, 6.2.*)
-#define MIDI_BULK_ENDPOINT(bEndpointAddress, bNumEmbMIDIJack, ...) \
+
+// Standard MS Bulk Data Endpoint Descriptor (midi10, 6.2.1)
+#define MIDI_STD_BULK_ENDPOINT(bEndpointAddress) \
     9, \
     USB_ENDPOINT_DESC, \
     (bEndpointAddress), \
     USB_DC_EP_BULK, \
-    64, \
+    MIDI_BULK_SIZE, 0, \
     0, \
     0, \
-    0, \
-    0, \
+    0
+
+
+// Class-Specific MS Bulk Data Endpoint Descriptor (midi10, 6.2.2)
+#define MIDI_CS_BULK_ENDPOINT(bNumEmbMIDIJack, ...) \
     4 + (bNumEmbMIDIJack), \
     CS_ENDPOINT, \
     MS_GENERAL, \
     (bNumEmbMIDIJack), \
     __VA_ARGS__
 
+// Standard + Class-Specific MS Bulk Data Endpoint Descriptor
+#define MIDI_BULK_ENDPOINT(bEndpointAddress, bNumEmbMIDIJack, ...) \
+    MIDI_STD_BULK_ENDPOINT(bEndpointAddress), \
+    MIDI_CS_BULK_ENDPOINT(bNumEmbMIDIJack, __VA_ARGS__)
 
-#define MIDISTREAMING_CONFIG(numEndpoints, ...) \
+
+// MIDIStreaming interface definition (midi10, 6)
+#define MIDISTREAMING_CONFIG(...) \
     { \
-        .if0={ \
-            .bLength=sizeof(struct usb_if_descriptor), \
-            .bDescriptorType=USB_INTERFACE_DESC, \
-            .bInterfaceNumber=0, \
-            .bAlternateSetting=0, \
-            .bNumEndpoints=(numEndpoints), \
-            .bInterfaceClass=AUDIO_CLASS, \
-            .bInterfaceSubClass=USB_AUDIO_MIDISTREAMING, \
-            .bInterfaceProtocol=0, \
-            .iInterface=0, \
-        }, \
-        .ms0={ \
-            .bLength=sizeof(struct usb_midi_if_descriptor), \
-            .bDescriptorType=CS_INTERFACE, \
-            .bDescriptorSubtype=MS_HEADER, \
-            .BcdADC=0x0100, \
-            .wTotalLength=7 + sizeof((uint8_t[]) {__VA_ARGS__}), \
-        }, \
-        .elements={__VA_ARGS__}, \
+        MIDI_CS_IF(__VA_ARGS__), \
+        __VA_ARGS__ \
     }
 
-// Class-specific MS Interface Descriptor (midi10, 6.1.2.1)
-struct usb_midi_if_descriptor {
-    uint8_t bLength;
-    uint8_t bDescriptorType;
-    uint8_t bDescriptorSubtype;
-    uint16_t BcdADC;
-    uint16_t wTotalLength;
-} __packed;
+bool midi_is_configured();
 
-
-struct usb_midi_config {
-    // MIDI Streaming standard && class specific interface
-    struct usb_if_descriptor if0;
-    struct usb_midi_if_descriptor ms0;
-
-    // MIDI elements
-    uint8_t elements[];
-} __packed;
+void midi_to_host(uint8_t cableNumber, const uint8_t *event, size_t eventsize);
 
 #endif
