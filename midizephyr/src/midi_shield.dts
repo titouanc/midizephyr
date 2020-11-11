@@ -1,0 +1,19 @@
+/ {
+    leds {
+        compatible = "gpio-leds";
+        midi_shield_led1: midi_shield_led1 {
+            gpios = <&arduino_header 12 0>;
+            label = "MIDI shield LED1";
+        };
+        midi_shield_led2: midi_shield_led2 {
+            gpios = <&arduino_header 13 0>;
+            label = "MIDI shield LED2";
+        };
+    };
+
+    aliases {
+        mled1 = &midi_shield_led1;
+        mled2 = &midi_shield_led2;
+        midiport = &usart6;
+    };
+};
