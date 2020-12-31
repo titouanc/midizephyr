@@ -114,6 +114,8 @@ struct usb_midi_if_descriptor {
 
 bool midi_is_configured();
 
-void midi_to_host(uint8_t cableNumber, const uint8_t *event, size_t eventsize);
+bool midi_to_host(uint8_t cableNumber, const uint8_t *event, size_t eventsize);
+
+void midi_from_host();
 
 #endif
