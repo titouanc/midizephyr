@@ -13,8 +13,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Upgrade pip
-      run: pip3 install --upgrade pip
+      run: python3 -m pip install --upgrade pip
     - name: install west
-      run: pip3 install west
+      run: python3 -m pip install west
     - name: build for nucleo_f429zi
       run: west build -b nucleo_f429zi midizephyr
