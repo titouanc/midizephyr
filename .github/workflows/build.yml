@@ -28,7 +28,7 @@ jobs:
         run: |
           wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.11.3/zephyr-sdk-0.11.3-setup.run
           chmod +x zephyr-sdk-0.11.3-setup.run
-          ./zephyr-sdk-0.11.3-setup.run -- -d /opt/zephyr
+          ./zephyr-sdk-0.11.3-setup.run -- -d /opt/zephyr-sdk
 
       - name: Checkout Zephyr submodule
         run: git submodule update --init
@@ -37,4 +37,4 @@ jobs:
         run: python3 -m west build -b nucleo_f429zi {{ matrix.project }} || cat $(find . -name CMakeError.log)
         env:
           ZEPHYR_TOOLCHAIN_VARIANT: zephyr
-          ZEPHYR_SDK_INSTALL_DIR: /opt/zephyr
+          ZEPHYR_SDK_INSTALL_DIR: /opt/zephyr-sdk
