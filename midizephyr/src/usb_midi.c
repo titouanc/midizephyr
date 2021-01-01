@@ -4,6 +4,7 @@
 
 #include <kernel.h>
 #include <sys/byteorder.h>
+#include <sys/ring_buffer.h>
 #include <usb/usb_common.h>
 #include <usb/usb_device.h>
 
@@ -54,23 +55,32 @@ USBD_CLASS_DESCR_DEFINE(primary, midistreaming) struct usb_midi_if_descriptor mi
         .iInterface=0
     },
     .cs_if0=MIDISTREAMING_CONFIG(
-        /* USB-MIDI elements */
+        /* === USB-MIDI elements === */
         /* Embedded MIDI from host */
-        MIDI_JACKIN_DESCRIPTOR( JACK_EMBEDDED, EMBEDDED_IN_EXTERNAL_MIDI_OUT_ID, 0),
+        MIDI_JACKIN_DESCRIPTOR(JACK_EMBEDDED, EMBEDDED_IN_EXTERNAL_MIDI_OUT_ID, 0),
         /* External MIDI OUT socket */
-        MIDI_JACKOUT_DESCRIPTOR(JACK_EXTERNAL,             EXTERNAL_MIDI_OUT_ID, 0, EMBEDDED_IN_EXTERNAL_MIDI_OUT_ID, 1),
+        MIDI_JACKOUT_DESCRIPTOR(JACK_EXTERNAL, EXTERNAL_MIDI_OUT_ID, 0,
+            EMBEDDED_IN_EXTERNAL_MIDI_OUT_ID, 1
+        ),
         /* External MIDI IN socket */
-        MIDI_JACKIN_DESCRIPTOR( JACK_EXTERNAL,              EXTERNAL_MIDI_IN_ID, 0),
+        MIDI_JACKIN_DESCRIPTOR( JACK_EXTERNAL, EXTERNAL_MIDI_IN_ID, 0),
         /* Embedded MIDI to host from external MIDI */
-        MIDI_JACKOUT_DESCRIPTOR(JACK_EMBEDDED, EMBEDDED_OUT_EXTERNAL_MIDI_IN_ID, 0,              EXTERNAL_MIDI_IN_ID, 1),
+        MIDI_JACKOUT_DESCRIPTOR(JACK_EMBEDDED, EMBEDDED_OUT_EXTERNAL_MIDI_IN_ID, 0,
+            EXTERNAL_MIDI_IN_ID, 1
+        ),
         /* Embedded MIDI to host from internal MIDI (sensors) */
         MIDI_JACKOUT_DESCRIPTOR(JACK_EMBEDDED, EMBEDDED_OUT_INTERNAL_MIDI_IN_ID, 0),
         
-        /* USB-MIDI endpoints */
+        /* === USB-MIDI endpoints === */
         /* Bulk endpoint MIDI_IN with 2 embedded MIDI to host */
-        MIDI_BULK_ENDPOINT( MIDI_IN_ENDPOINT_ID, EMBEDDED_OUT_INTERNAL_MIDI_IN_ID, EMBEDDED_OUT_EXTERNAL_MIDI_IN_ID),
+        MIDI_BULK_ENDPOINT(MIDI_IN_ENDPOINT_ID,
+            EMBEDDED_OUT_INTERNAL_MIDI_IN_ID,
+            EMBEDDED_OUT_EXTERNAL_MIDI_IN_ID
+        ),
         /* Bulk endpointMIDI_OUT with 1 embedded MIDI from host */
-        MIDI_BULK_ENDPOINT(MIDI_OUT_ENDPOINT_ID, EMBEDDED_IN_EXTERNAL_MIDI_OUT_ID),
+        MIDI_BULK_ENDPOINT(MIDI_OUT_ENDPOINT_ID,
+            EMBEDDED_IN_EXTERNAL_MIDI_OUT_ID
+        ),
     )
 };
 
@@ -78,9 +88,8 @@ static void midi_interface_configure(struct usb_desc_header *head, uint8_t bInte
 {
     ARG_UNUSED(head);
     midi_cfg.if0.bInterfaceNumber = bInterfaceNumber;
-    LOG_INF("USB MIDI Interface config");
+    LOG_INF("USB MIDI Interface configured: %d", (int) bInterfaceNumber);
 }
-
 
 static enum usb_dc_status_code current_status = 0;
 
@@ -151,40 +160,59 @@ USBD_CFG_DATA_DEFINE(primary, midistreaming) struct usb_cfg_data midi_config = {
 };
 
 
-bool midi_is_configured()
+bool usb_midi_is_configured()
 {
     return current_status == USB_DC_CONFIGURED;
 }
 
+/* === Output stream === */
+RING_BUF_ITEM_DECLARE_POW2(usb_midi_to_host_buf, 5);
 
-bool midi_to_host(uint8_t cableNumber, const uint8_t *event, size_t eventsize)
+static void usb_midi_to_host_done(uint8_t ep, int size, void *data)
 {
-    if (! midi_is_configured() || eventsize < 2){
-        LOG_WRN("Dropping MIDI pkt to host: not ready or packet invalid");
-        return false;
+    ARG_UNUSED(ep);
+    ARG_UNUSED(data);
+    if (size > 0){
+        ring_buf_get_finish(&usb_midi_to_host_buf, size);
+    } else {
+        ring_buf_get_finish(&usb_midi_to_host_buf, 0);
     }
-    uint8_t midi_cmd = event[0] >> 4;
-    // We only support note-off or above for now
-    if (midi_cmd < 0x8){
-        LOG_WRN("Dropping MIDI pkt to host: command not supported");
-        return false;
-    }
-
-    // Put into fixed 32b usb-midi packet
-    uint8_t pkt[4] = {(cableNumber << 4) | midi_cmd};
-    memcpy(&pkt[1], event, MIN(3, eventsize));
-    usb_transfer_sync(MIDI_IN_ENDPOINT_ID, pkt, 4, USB_TRANS_WRITE);
-    return true;
 }
 
-void midi_from_host()
+
+bool usb_midi_to_host(uint8_t cable_number, const uint8_t midi_pkt[3])
 {
-    uint8_t pkt[4];
-    if (midi_is_configured()){
-        LOG_INF(">> ... (waiting)");
-        int r = usb_transfer_sync(MIDI_OUT_ENDPOINT_ID, pkt, 4, USB_TRANS_READ);
-        if (r > 0){
-            LOG_INF(">> [%d] {%02hhX %02hhX %02hhX %02hhX}", r, pkt[0], pkt[1], pkt[2], pkt[3]);
-        }
+    // Deny sending MIDI to host if USB not configured
+    if (! usb_midi_is_configured()){
+        return false;
     }
+
+    // Determine the USB-MIDI prefix
+    uint8_t cmd = midi_pkt[0] >> 4;
+    uint8_t prefix = (cable_number << 4) | cmd;
+    uint8_t *queued_data = NULL;
+
+    // Allocate space in tx buffer
+    uint32_t requested = 1 + midi_datasize(cmd);
+    uint32_t allocated = ring_buf_put_claim(&usb_midi_to_host_buf, &queued_data, requested);
+    if (allocated < requested){
+        ring_buf_put_finish(&usb_midi_to_host_buf, 0);
+        return false;
+    }
+
+    // Copy to tx buffer
+    queued_data[0] = prefix;
+    memcpy(&queued_data[1], midi_pkt, midi_datasize(cmd));
+
+    // Commit transaction, and initiate USB transfer
+    ring_buf_put_finish(&usb_midi_to_host_buf, allocated);
+
+    // Then initiate USB transfer with all available data
+    uint32_t data_ready = ring_buf_get_claim(&usb_midi_to_host_buf, &queued_data, MIDI_BULK_SIZE);
+    if (data_ready > 0){
+        usb_transfer(MIDI_IN_ENDPOINT_ID, queued_data, data_ready, USB_TRANS_WRITE, usb_midi_to_host_done, NULL);
+    } else {
+        ring_buf_get_finish(&usb_midi_to_host_buf, 0);
+    }
+    return true;
 }

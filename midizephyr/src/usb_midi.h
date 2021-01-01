@@ -114,25 +114,14 @@ struct usb_midi_if_descriptor {
         __VA_ARGS__ \
     }
 
-#define USB_MIDI_EVENT_SHORT(cable, cin, chan, p) USB_MIDI_EVENT(cable, cin, chan, p, 0)
-#define USB_MIDI_EVENT(cable, cin, chan, p1, p2) {.cn=cable, .cin=cin, .cin2=cin, .chan=chan, .data={p1, p2}}
-
-struct usb_midi_evt {
-    unsigned cn : 4;
-    unsigned cin : 4;
-    unsigned cin2 : 4;
-    unsigned chan : 4;
-    uint8_t data[2];
-};
-
 #define MIDI_SYS_COMMON2    0x02
 #define MIDI_SYS_COMMON3    0x03
 #define MIDI_SYSEX_START    0x04
 #define MIDI_SYS_COMMON1    0x05
 #define MIDI_SYSEX_2B       0x06
 #define MIDI_SYSEX_3B       0x07
-#define MIDI_NOTE_ON        0x08
-#define MIDI_NOTE_OFF       0x09
+#define MIDI_NOTE_OFF       0x08
+#define MIDI_NOTE_ON        0x09
 #define MIDI_POLY_KEYPRESS  0x0A
 #define MIDI_CONTROL_CHANGE 0x0B
 #define MIDI_PROGRAM_CHANGE 0x0C
@@ -156,10 +145,8 @@ static inline size_t midi_datasize(uint8_t evt_type)
     }
 }
 
-bool midi_is_configured();
+bool usb_midi_is_configured();
 
-bool midi_to_host(uint8_t cableNumber, const uint8_t *event, size_t eventsize);
-
-void midi_from_host();
+bool usb_midi_to_host(uint8_t cable_number, const uint8_t midi_pkt[3]);
 
 #endif

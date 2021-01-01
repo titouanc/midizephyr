@@ -99,13 +99,13 @@ static void status_led_task()
             if (tick % 10 == 0){
                 is_on = ! is_on;
             }
-            if (midi_is_configured()){
+            if (usb_midi_is_configured()){
                 app_state = RUNNING;
             }
             break;
         case RUNNING:
             is_on = ! is_on;
-            if (! midi_is_configured()){
+            if (! usb_midi_is_configured()){
                 app_state = USB_ENABLED;
                 is_on = false;
             }
@@ -119,17 +119,27 @@ static void status_led_task()
 
 
 static const struct device *midi_uart = NULL;
-static void midi_send(const uint8_t *pkt, size_t pktsize)
+static void midi_send(uint8_t chan)
 {
-    if (midi_to_host(0, pkt, pktsize)){
-        for (size_t i=0; i<pktsize; i++){
-            uart_poll_out(midi_uart, pkt[i]);
-        }
-        do_act_led();
+    const uint8_t midi_pkt[3] = {(MIDI_NOTE_ON << 4) | chan, 0, 0x7f};
+    if (! usb_midi_to_host(0, midi_pkt)){
+        LOG_ERR("Unable to send MIDI to host");
+        return;
     }
+
+    for (size_t i=0; i<sizeof(midi_pkt); i++){
+        uart_poll_out(midi_uart, midi_pkt[i]);
+    }
+
+    do_act_led();
 }
 
-#define MIDI_HIT(seq, steps) {midi_send(seq, sizeof(seq)); k_sleep(K_MSEC(steps*62));}
+#define kick 0
+#define hat 1
+#define hat_open 2
+#define snare 3
+
+#define MIDI_HIT(chan, steps) {midi_send(chan); k_sleep(K_MSEC(steps*62));}
 
 void main(void)
 {
@@ -166,11 +176,6 @@ void main(void)
 
     k_delayed_work_init(&act_led_work, act_led_task);
     k_delayed_work_submit(&act_led_work, K_NO_WAIT);
-
-    uint8_t kick[] = {0x90, 0x00, 0x7f};
-    uint8_t snare[] = {0x93, 0x00, 0x50};
-    uint8_t hat[] = {0x91, 0x00, 0x50};
-    uint8_t hat_open[] = {0x92, 0x00, 0x50};
 
     unsigned long beat = 0;
     while (1){
