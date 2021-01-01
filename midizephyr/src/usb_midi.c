@@ -204,7 +204,7 @@ bool usb_midi_to_host(uint8_t cable_number, const uint8_t midi_pkt[3])
     queued_data[0] = prefix;
     memcpy(&queued_data[1], midi_pkt, midi_datasize(cmd));
 
-    // Commit transaction, and initiate USB transfer
+    // Commit transaction
     ring_buf_put_finish(&usb_midi_to_host_buf, allocated);
 
     // Then initiate USB transfer with all available data
