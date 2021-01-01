@@ -10,10 +10,6 @@ jobs:
   build:
     runs-on: ubuntu-20.04
 
-    strategy:
-      matrix:
-        project: [ midizephyr ]
-
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -33,8 +29,8 @@ jobs:
       - name: Checkout Zephyr submodule
         run: git submodule update --init
 
-      - name: Build {{ matrix.project }} for nucleo_f429zi
-        run: python3 -m west build -b nucleo_f429zi {{ matrix.project }} || cat $(find . -name CMakeError.log)
+      - name: Build midizephyr for nucleo_f429zi
+        run: python3 -m west build -b nucleo_f429zi midizephyr || cat $(find . -name CMakeError.log)
         env:
           ZEPHYR_TOOLCHAIN_VARIANT: zephyr
           ZEPHYR_SDK_INSTALL_DIR: /opt/zephyr-sdk
