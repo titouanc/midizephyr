@@ -14,13 +14,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Install Ubuntu deps
+      - name: Install dependencies for Zephyr and West
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-pip python3-setuptools python3-tk python3-wheel xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev
+          python3 -m pip install west
 
       - name: Install Zephyr SDK
         run: |
-          wget https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.11.3/zephyr-sdk-0.11.3-setup.run
+          wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.11.3/zephyr-sdk-0.11.3-setup.run
           chmod +x zephyr-sdk-0.11.3-setup.run
           ./zephyr-sdk-0.11.3-setup.run -- -d /opt/zephyr
+
+      - name: Checkout Zephyr submodule
+        run: |
+          git submodule update --init
+
+      - name: Build for nucleo_f429zi
+        run: west build -b nucleo_f429zi midizephyr
