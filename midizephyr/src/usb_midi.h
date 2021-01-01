@@ -47,14 +47,16 @@ struct usb_midi_if_descriptor {
     uint8_t cs_if0[];
 };
 
+#define N_ELEMS(...) sizeof((uint8_t[]) {__VA_ARGS__})
+
 // Class-Specific MS Interface Header Descriptor (midi10, 6.1.2.1)
 #define MIDI_CS_IF(...) \
     7, \
     CS_INTERFACE, \
     MS_HEADER, \
     0x01, 0x00, \
-    (7 + sizeof((uint8_t[]) {__VA_ARGS__})) >> 8, \
-    7 + sizeof((uint8_t[]) {__VA_ARGS__})
+    (7 + N_ELEMS(__VA_ARGS__)) >> 8, \
+    7 + N_ELEMS(__VA_ARGS__)
 
 
 // MIDI IN Jack Descriptor (midi10, 6.1.2.2)
@@ -68,14 +70,14 @@ struct usb_midi_if_descriptor {
 
 
 // MIDI OUT Jack Descriptor (midi10, 6.1.2.3)
-#define MIDI_JACKOUT_DESCRIPTOR(bJackType, bJackID, iJack, bNrInputPins, ...) \
-    (7 + 2*(bNrInputPins)), \
+#define MIDI_JACKOUT_DESCRIPTOR(bJackType, bJackID, iJack, ...) \
+    (7 + N_ELEMS(__VA_ARGS__)), \
     CS_INTERFACE, \
     MIDI_OUT_JACK, \
     (bJackType), \
     (bJackID), \
-    (bNrInputPins), \
-    __VA_ARGS__, \
+    N_ELEMS(__VA_ARGS__)/2, \
+    ##__VA_ARGS__, \
     (iJack)
 
 
@@ -92,17 +94,17 @@ struct usb_midi_if_descriptor {
 
 
 // Class-Specific MS Bulk Data Endpoint Descriptor (midi10, 6.2.2)
-#define MIDI_CS_BULK_ENDPOINT(bNumEmbMIDIJack, ...) \
-    4 + (bNumEmbMIDIJack), \
+#define MIDI_CS_BULK_ENDPOINT(...) \
+    4 + N_ELEMS(__VA_ARGS__), \
     CS_ENDPOINT, \
     MS_GENERAL, \
-    (bNumEmbMIDIJack), \
+    N_ELEMS(__VA_ARGS__), \
     __VA_ARGS__
 
 // Standard + Class-Specific MS Bulk Data Endpoint Descriptor
-#define MIDI_BULK_ENDPOINT(bEndpointAddress, bNumEmbMIDIJack, ...) \
+#define MIDI_BULK_ENDPOINT(bEndpointAddress, ...) \
     MIDI_STD_BULK_ENDPOINT(bEndpointAddress), \
-    MIDI_CS_BULK_ENDPOINT(bNumEmbMIDIJack, __VA_ARGS__)
+    MIDI_CS_BULK_ENDPOINT(__VA_ARGS__)
 
 
 // MIDIStreaming interface definition (midi10, 6)
@@ -111,6 +113,48 @@ struct usb_midi_if_descriptor {
         MIDI_CS_IF(__VA_ARGS__), \
         __VA_ARGS__ \
     }
+
+#define USB_MIDI_EVENT_SHORT(cable, cin, chan, p) USB_MIDI_EVENT(cable, cin, chan, p, 0)
+#define USB_MIDI_EVENT(cable, cin, chan, p1, p2) {.cn=cable, .cin=cin, .cin2=cin, .chan=chan, .data={p1, p2}}
+
+struct usb_midi_evt {
+    unsigned cn : 4;
+    unsigned cin : 4;
+    unsigned cin2 : 4;
+    unsigned chan : 4;
+    uint8_t data[2];
+};
+
+#define MIDI_SYS_COMMON2    0x02
+#define MIDI_SYS_COMMON3    0x03
+#define MIDI_SYSEX_START    0x04
+#define MIDI_SYS_COMMON1    0x05
+#define MIDI_SYSEX_2B       0x06
+#define MIDI_SYSEX_3B       0x07
+#define MIDI_NOTE_ON        0x08
+#define MIDI_NOTE_OFF       0x09
+#define MIDI_POLY_KEYPRESS  0x0A
+#define MIDI_CONTROL_CHANGE 0x0B
+#define MIDI_PROGRAM_CHANGE 0x0C
+#define MIDI_CHAN_PRESSURE  0x0D
+#define MIDI_PITCH_BEND     0x0E
+#define MIDI_SINGLE_BYTE    0x0F
+
+static inline size_t midi_datasize(uint8_t evt_type)
+{
+    switch (evt_type){
+        case MIDI_SYS_COMMON1:
+        case MIDI_SINGLE_BYTE:
+            return 1;
+        case MIDI_SYS_COMMON2:
+        case MIDI_SYSEX_2B:
+        case MIDI_PROGRAM_CHANGE:
+        case MIDI_CHAN_PRESSURE:
+            return 2;
+        default:
+            return 3;
+    }
+}
 
 bool midi_is_configured();
 

@@ -12,8 +12,8 @@
     };
 
     aliases {
-        mled1 = &midi_shield_led1;
-        mled2 = &midi_shield_led2;
-        midiport = &usart6;
+        midiled1 = &midi_shield_led1;
+        midiled2 = &midi_shield_led2;
+        midiport = &arduino_serial;
     };
 };

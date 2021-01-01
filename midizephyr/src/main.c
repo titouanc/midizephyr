@@ -2,6 +2,7 @@
 #include <device.h>
 #include <devicetree.h>
 #include <drivers/gpio.h>
+#include <drivers/uart.h>
 #include <usb/usb_device.h>
 
 #include "usb_midi.h"
@@ -17,18 +18,18 @@ enum {
 
 #define SLEEP_TIME_MS   100
 
-#define STATUS_LED_NODE  DT_ALIAS(mled1)
+#define MIDI_UART_NODE   DT_ALIAS(midiport)
+#define MIDI_UART_LABEL  DT_LABEL(MIDI_UART_NODE)
+
+#define STATUS_LED_NODE  DT_NODELABEL(blue_led_1)
 #define STATUS_LED_LABEL DT_GPIO_LABEL(STATUS_LED_NODE, gpios)
 #define STATUS_LED_PIN   DT_GPIO_PIN(STATUS_LED_NODE, gpios)
 #define STATUS_LED_FLAGS DT_GPIO_FLAGS(STATUS_LED_NODE, gpios)
 
-#define ACT_LED_NODE  DT_ALIAS(mled2)
+#define ACT_LED_NODE  DT_ALIAS(midiled2)
 #define ACT_LED_LABEL DT_GPIO_LABEL(ACT_LED_NODE, gpios)
 #define ACT_LED_PIN   DT_GPIO_PIN(ACT_LED_NODE, gpios)
 #define ACT_LED_FLAGS DT_GPIO_FLAGS(ACT_LED_NODE, gpios)
-
-static const uint8_t noteOn[] = {0x90, 0x42, 0x7F};
-static const uint8_t noteOff[] = {0x80, 0x42, 0x7F};
 
 static K_SEM_DEFINE(act_led_sem, 0, 1);
 
@@ -40,7 +41,7 @@ static void do_act_led()
 static struct k_delayed_work act_led_work;
 static void act_led_task()
 {
-    static struct device *led_dev = NULL;
+    static const struct device *led_dev = NULL;
 
     if (! led_dev){
         led_dev = device_get_binding(ACT_LED_LABEL);
@@ -76,7 +77,7 @@ static void status_led_task()
 {
     static unsigned int tick = 0;
     static bool is_on = true;
-    static struct device *led_dev = NULL;
+    static const struct device *led_dev = NULL;
 
     if (! led_dev){
         led_dev = device_get_binding(STATUS_LED_LABEL);
@@ -116,9 +117,41 @@ static void status_led_task()
     k_delayed_work_submit(&status_led_work, K_MSEC(SLEEP_TIME_MS));
 }
 
+
+static const struct device *midi_uart = NULL;
+static void midi_send(const uint8_t *pkt, size_t pktsize)
+{
+    if (midi_to_host(0, pkt, pktsize)){
+        for (size_t i=0; i<pktsize; i++){
+            uart_poll_out(midi_uart, pkt[i]);
+        }
+        do_act_led();
+    }
+}
+
+#define MIDI_HIT(seq, steps) {midi_send(seq, sizeof(seq)); k_sleep(K_MSEC(steps*62));}
+
 void main(void)
 {
     LOG_INF("Starting...");
+
+    int r = 0;
+    const struct uart_config midi_uart_config = {
+        .baudrate=31250,
+        .parity= UART_CFG_PARITY_NONE,
+        .stop_bits=UART_CFG_STOP_BITS_1,
+        .data_bits=UART_CFG_DATA_BITS_8,
+        .flow_ctrl=UART_CFG_FLOW_CTRL_NONE,
+    };
+    midi_uart = device_get_binding(MIDI_UART_LABEL);
+    if (! midi_uart){
+        LOG_ERR("Unable to open MIDI uart");
+        return;
+    }
+    if (r = uart_configure(midi_uart, &midi_uart_config)){
+        LOG_ERR("Error configuring MIDI uart: %d", r);
+        return;
+    }
 
     k_delayed_work_init(&status_led_work, status_led_task);
     k_delayed_work_submit(&status_led_work, K_NO_WAIT);
@@ -134,15 +167,28 @@ void main(void)
     k_delayed_work_init(&act_led_work, act_led_task);
     k_delayed_work_submit(&act_led_work, K_NO_WAIT);
 
-    while (1){
-        if (midi_to_host(0, noteOn, sizeof(noteOn))){
-            do_act_led();
-        }
-        k_sleep(K_MSEC(1000));
+    uint8_t kick[] = {0x90, 0x00, 0x7f};
+    uint8_t snare[] = {0x93, 0x00, 0x50};
+    uint8_t hat[] = {0x91, 0x00, 0x50};
+    uint8_t hat_open[] = {0x92, 0x00, 0x50};
 
-        if (midi_to_host(0, noteOff, sizeof(noteOff))){
-            do_act_led();
+    unsigned long beat = 0;
+    while (1){
+        beat++;
+        MIDI_HIT(kick, 2);
+        MIDI_HIT(hat_open, 2);
+
+        MIDI_HIT(hat, 4);
+        
+        MIDI_HIT(snare, 2);
+        MIDI_HIT(hat_open, 2);
+        
+        if (beat % 4){
+            MIDI_HIT(hat, 4);
+        } else {
+            MIDI_HIT(hat_open, 2);
+            MIDI_HIT(kick, 1);
+            MIDI_HIT(hat, 1);
         }
-        k_sleep(K_MSEC(1000));
     }
 }

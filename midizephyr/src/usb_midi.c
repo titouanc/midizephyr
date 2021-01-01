@@ -12,33 +12,34 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(usb_midi);
 
-#define MIDI_OUT_EP_ADDR 0x01
-#define MIDI_IN_EP_ADDR  0x81
+/*             
+MIDI sockets   USB-MIDI function                USB function   
+------------   -----------------                ------------
 
-#define EMBEDDED_MIDI_IN_ID  1
-#define EXTERNAL_MIDI_IN_ID  2
-#define INTERNAL_MIDI_IN_ID  3
-#define EMBEDDED_MIDI_OUT_ID 4
-#define EXTERNAL_MIDI_OUT_ID 5
+               ---------------------------
+               |                         |
+               *   EMB_OUT_INT_MIDI_IN >-*--+ 0
+               |                         |  +---> MIDI_IN_ENDPOINT
+EXT_MIDI_IN  >-*-> EMB_OUT_EXT_MIDI_IN >-*--+ 1
+               |                         |
+EXT_MIDI_OUT <-*-< EMB_IN_EXT_MIDI_OUT <-*------< MIDI_OUT_ENDPOINT
+               |                         |
+               ---------------------------
+ */
 
 
-#define EMBEDDED_MIDI_IN_LABEL  "EMBEDDED_MIDI_IN"
-#define EXTERNAL_MIDI_IN_LABEL  "EXTERNAL_MIDI_IN"
-#define INTERNAL_MIDI_IN_LABEL  "INTERNAL_MIDI_IN"
-#define EMBEDDED_MIDI_OUT_LABEL "EMBEDDED_MIDI_OUT"
-#define EXTERNAL_MIDI_OUT_LABEL "EXTERNAL_MIDI_OUT"
-
-
-// static void midi_out_cb(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status);
-// static void midi_in_cb(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status);
+#define EXTERNAL_MIDI_IN_ID  1
+#define EXTERNAL_MIDI_OUT_ID 2
+#define EMBEDDED_OUT_INTERNAL_MIDI_IN_ID 3
+#define EMBEDDED_OUT_EXTERNAL_MIDI_IN_ID 4
+#define EMBEDDED_IN_EXTERNAL_MIDI_OUT_ID 5
+#define MIDI_IN_ENDPOINT_ID  0x81
+#define MIDI_OUT_ENDPOINT_ID 0x01
 
 static struct usb_ep_cfg_data ep_cfg[] = {
-    {.ep_cb=usb_transfer_ep_callback, .ep_addr=MIDI_IN_EP_ADDR},
-    {.ep_cb=usb_transfer_ep_callback, .ep_addr=MIDI_OUT_EP_ADDR},
+    {.ep_cb=usb_transfer_ep_callback, .ep_addr=MIDI_IN_ENDPOINT_ID},
+    {.ep_cb=usb_transfer_ep_callback, .ep_addr=MIDI_OUT_ENDPOINT_ID},
 };
-
-static bool is_configured = false;
-
 
 USBD_CLASS_DESCR_DEFINE(primary, midistreaming) struct usb_midi_if_descriptor midi_cfg = {
     .if0={
@@ -53,16 +54,25 @@ USBD_CLASS_DESCR_DEFINE(primary, midistreaming) struct usb_midi_if_descriptor mi
         .iInterface=0
     },
     .cs_if0=MIDISTREAMING_CONFIG(
-        MIDI_JACKIN_DESCRIPTOR( JACK_EMBEDDED,  EMBEDDED_MIDI_IN_ID, 0),
-        MIDI_JACKIN_DESCRIPTOR( JACK_EXTERNAL,  EXTERNAL_MIDI_IN_ID, 0),
-        MIDI_JACKIN_DESCRIPTOR( JACK_EXTERNAL,  INTERNAL_MIDI_IN_ID, 0),
-        MIDI_JACKOUT_DESCRIPTOR(JACK_EMBEDDED, EMBEDDED_MIDI_OUT_ID, 0, 2, EXTERNAL_MIDI_IN_ID, 1, INTERNAL_MIDI_IN_ID, 2),
-        MIDI_JACKOUT_DESCRIPTOR(JACK_EXTERNAL, EXTERNAL_MIDI_OUT_ID, 0, 1, EMBEDDED_MIDI_IN_ID, 1),
-        MIDI_BULK_ENDPOINT(MIDI_OUT_EP_ADDR, 1,  EMBEDDED_MIDI_IN_ID),
-        MIDI_BULK_ENDPOINT( MIDI_IN_EP_ADDR, 1, EMBEDDED_MIDI_OUT_ID),
+        /* USB-MIDI elements */
+        /* Embedded MIDI from host */
+        MIDI_JACKIN_DESCRIPTOR( JACK_EMBEDDED, EMBEDDED_IN_EXTERNAL_MIDI_OUT_ID, 0),
+        /* External MIDI OUT socket */
+        MIDI_JACKOUT_DESCRIPTOR(JACK_EXTERNAL,             EXTERNAL_MIDI_OUT_ID, 0, EMBEDDED_IN_EXTERNAL_MIDI_OUT_ID, 1),
+        /* External MIDI IN socket */
+        MIDI_JACKIN_DESCRIPTOR( JACK_EXTERNAL,              EXTERNAL_MIDI_IN_ID, 0),
+        /* Embedded MIDI to host from external MIDI */
+        MIDI_JACKOUT_DESCRIPTOR(JACK_EMBEDDED, EMBEDDED_OUT_EXTERNAL_MIDI_IN_ID, 0,              EXTERNAL_MIDI_IN_ID, 1),
+        /* Embedded MIDI to host from internal MIDI (sensors) */
+        MIDI_JACKOUT_DESCRIPTOR(JACK_EMBEDDED, EMBEDDED_OUT_INTERNAL_MIDI_IN_ID, 0),
+        
+        /* USB-MIDI endpoints */
+        /* Bulk endpoint MIDI_IN with 2 embedded MIDI to host */
+        MIDI_BULK_ENDPOINT( MIDI_IN_ENDPOINT_ID, EMBEDDED_OUT_INTERNAL_MIDI_IN_ID, EMBEDDED_OUT_EXTERNAL_MIDI_IN_ID),
+        /* Bulk endpointMIDI_OUT with 1 embedded MIDI from host */
+        MIDI_BULK_ENDPOINT(MIDI_OUT_ENDPOINT_ID, EMBEDDED_IN_EXTERNAL_MIDI_OUT_ID),
     )
 };
-
 
 static void midi_interface_configure(struct usb_desc_header *head, uint8_t bInterfaceNumber)
 {
@@ -72,31 +82,30 @@ static void midi_interface_configure(struct usb_desc_header *head, uint8_t bInte
 }
 
 
+static enum usb_dc_status_code current_status = 0;
+
 static void midi_status_callback(struct usb_cfg_data *cfg, enum usb_dc_status_code status, const uint8_t *param)
 {
     ARG_UNUSED(cfg);
+    current_status = status;
     switch (status){
     case USB_DC_ERROR:
         LOG_INF("USB error reported by the controller");
         break;
     case USB_DC_RESET:
         LOG_INF("USB reset");
-        is_configured = false;
         break;
     case USB_DC_CONNECTED:
         LOG_INF("USB connection established, hardware enumeration is completed");
         break;
     case USB_DC_CONFIGURED:
         LOG_INF("USB configuration done");
-        is_configured = true;
         break;
     case USB_DC_DISCONNECTED:
         LOG_INF("USB connection lost");
-        is_configured = false;
         break;
     case USB_DC_SUSPEND:
         LOG_INF("USB connection suspended by the HOST");
-        is_configured = false;
         break;
     case USB_DC_RESUME:
         LOG_INF("USB connection resumed by the HOST");
@@ -144,13 +153,13 @@ USBD_CFG_DATA_DEFINE(primary, midistreaming) struct usb_cfg_data midi_config = {
 
 bool midi_is_configured()
 {
-    return is_configured;
+    return current_status == USB_DC_CONFIGURED;
 }
 
 
 bool midi_to_host(uint8_t cableNumber, const uint8_t *event, size_t eventsize)
 {
-    if (! is_configured || eventsize < 2){
+    if (! midi_is_configured() || eventsize < 2){
         LOG_WRN("Dropping MIDI pkt to host: not ready or packet invalid");
         return false;
     }
@@ -164,19 +173,16 @@ bool midi_to_host(uint8_t cableNumber, const uint8_t *event, size_t eventsize)
     // Put into fixed 32b usb-midi packet
     uint8_t pkt[4] = {(cableNumber << 4) | midi_cmd};
     memcpy(&pkt[1], event, MIN(3, eventsize));
-    LOG_DBG("<< {%02hhX %02hhX %02hhX %02hhX}", pkt[0], pkt[1], pkt[2], pkt[3]);
-    usb_transfer_sync(MIDI_IN_EP_ADDR, pkt, 4, USB_TRANS_WRITE);
-    LOG_INF("<< OK {%02hhX %02hhX %02hhX %02hhX}", pkt[0], pkt[1], pkt[2], pkt[3]);
+    usb_transfer_sync(MIDI_IN_ENDPOINT_ID, pkt, 4, USB_TRANS_WRITE);
     return true;
 }
-
 
 void midi_from_host()
 {
     uint8_t pkt[4];
-    if (is_configured){
+    if (midi_is_configured()){
         LOG_INF(">> ... (waiting)");
-        int r = usb_transfer_sync(MIDI_OUT_EP_ADDR, pkt, 4, USB_TRANS_READ);
+        int r = usb_transfer_sync(MIDI_OUT_ENDPOINT_ID, pkt, 4, USB_TRANS_READ);
         if (r > 0){
             LOG_INF(">> [%d] {%02hhX %02hhX %02hhX %02hhX}", r, pkt[0], pkt[1], pkt[2], pkt[3]);
         }
