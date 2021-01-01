@@ -12,7 +12,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: install west
+    - name: install setuptools west
       run: pip3 install west
     - name: build for nucleo_f429zi
       run: west build -b nucleo_f429zi midizephyr
