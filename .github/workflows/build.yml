@@ -10,6 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        project: [ midizephyr ]
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -17,7 +21,7 @@ jobs:
       - name: Install dependencies for Zephyr and West
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-pip python3-setuptools python3-wheel xz-utils file make gcc gcc-multilib g++-multilib
+          sudo apt-get install -y --no-install-recommends git cmake ninja-build gperf dfu-util wget python3-dev python3-pip python3-setuptools python3-wheel xz-utils file make gcc gcc-multilib g++-multilib
           python3 -m pip install west
 
       - name: Install Zephyr SDK
@@ -29,8 +33,8 @@ jobs:
       - name: Checkout Zephyr submodule
         run: git submodule update --init
 
-      - name: Build for nucleo_f429zi
-        run: python3 -m west build -b nucleo_f429zi midizephyr
+      - name: Build {{ matrix.project }} for nucleo_f429zi
+        run: python3 -m west build -b nucleo_f429zi {{ matrix.project }} || cat $(find . -name CMakeError.log)
         env:
           ZEPHYR_TOOLCHAIN_VARIANT: zephyr
           ZEPHYR_SDK_INSTALL_DIR: /opt/zephyr
