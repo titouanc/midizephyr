@@ -27,8 +27,7 @@ jobs:
           ./zephyr-sdk-0.11.3-setup.run -- -d /opt/zephyr
 
       - name: Checkout Zephyr submodule
-        run: |
-          git submodule update --init
+        run: git submodule update --init
 
       - name: Build for nucleo_f429zi
-        run: west build -b nucleo_f429zi midizephyr
+        run: python3 -m west build -b nucleo_f429zi midizephyr
