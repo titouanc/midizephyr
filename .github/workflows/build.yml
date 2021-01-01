@@ -11,10 +11,54 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Upgrade pip
-      run: python3 -m pip install --upgrade pip
-    - name: install west
-      run: python3 -m pip install west
-    - name: build for nucleo_f429zi
-      run: west build -b nucleo_f429zi midizephyr
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Cache west modules
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-zephyr-modules
+        with:
+          path: |
+            modules/
+            tools/
+            zephyr/
+            bootloader/
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('app/west.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: West Init
+        uses: zmkfirmware/zephyr-west-action@v0.1.0
+        id: west-init
+        with:
+          command: 'init'
+          command-args: '-l app'
+
+      - name: West Update
+        uses: zmkfirmware/zephyr-west-action@v0.1.0
+        id: west-update
+        with:
+          command: 'update'
+
+      - name: West Config Zephyr Base
+        uses: zmkfirmware/zephyr-west-action@v0.1.0
+        id: west-config
+        with:
+          command: 'config'
+          command-args: '--global zephyr.base-prefer configfile'
+
+      - name: West Zephyr Export
+        uses: zmkfirmware/zephyr-west-action@v0.1.0
+        id: west-zephyr-export
+        with:
+          command: 'zephyr-export'
+
+      - name: West Build
+        uses: zmkfirmware/zephyr-west-action@v0.1.0
+        id: west-build
+        with:
+          command: 'build'
+          command-args: '-s app'
