@@ -31,33 +31,33 @@ jobs:
             ${{ runner.os }}-
 
       - name: West Init
-        uses: zmkfirmware/zephyr-west-action/zephyr-west-action-arm@v0.3.3
+        uses: docker://docker.pkg.github.com/zmkfirmware/zephyr-west-action/zephyr-west-action-arm:v0.3.3
         id: west-init
         with:
           command: 'init'
           command-args: '-l app'
 
       - name: West Update
-        uses: zmkfirmware/zephyr-west-action/zephyr-west-action-arm@v0.3.3
+        uses: docker://docker.pkg.github.com/zmkfirmware/zephyr-west-action/zephyr-west-action-arm:v0.3.3
         id: west-update
         with:
           command: 'update'
 
       - name: West Config Zephyr Base
-        uses: zmkfirmware/zephyr-west-action/zephyr-west-action-arm@v0.3.3
+        uses: docker://docker.pkg.github.com/zmkfirmware/zephyr-west-action/zephyr-west-action-arm:v0.3.3
         id: west-config
         with:
           command: 'config'
           command-args: '--global zephyr.base-prefer configfile'
 
       - name: West Zephyr Export
-        uses: zmkfirmware/zephyr-west-action/zephyr-west-action-arm@v0.3.3
+        uses: docker://docker.pkg.github.com/zmkfirmware/zephyr-west-action/zephyr-west-action-arm:v0.3.3
         id: west-zephyr-export
         with:
           command: 'zephyr-export'
 
       - name: West Build
-        uses: zmkfirmware/zephyr-west-action/zephyr-west-action-arm@v0.3.3
+        uses: docker://docker.pkg.github.com/zmkfirmware/zephyr-west-action/zephyr-west-action-arm:v0.3.3
         id: west-build
         with:
           command: 'build'
