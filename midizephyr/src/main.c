@@ -118,34 +118,8 @@ static void status_led_task()
 }
 
 
-static const struct device *midi_uart = NULL;
-static void midi_send(uint8_t chan)
+static void to_external_midi_out_func(void *p1, void *p2, void *p3)
 {
-    const uint8_t midi_pkt[3] = {(MIDI_NOTE_ON << 4) | chan, 0, 0x7f};
-    if (! usb_midi_to_host(0, midi_pkt)){
-        LOG_ERR("Unable to send MIDI to host");
-        return;
-    }
-
-    for (size_t i=0; i<sizeof(midi_pkt); i++){
-        uart_poll_out(midi_uart, midi_pkt[i]);
-    }
-
-    do_act_led();
-}
-
-#define kick 0
-#define hat 1
-#define hat_open 2
-#define snare 3
-
-#define MIDI_HIT(chan, steps) {midi_send(chan); k_sleep(K_MSEC(steps*62));}
-
-void main(void)
-{
-    LOG_INF("Starting...");
-
-    int r = 0;
     const struct uart_config midi_uart_config = {
         .baudrate=31250,
         .parity= UART_CFG_PARITY_NONE,
@@ -153,15 +127,62 @@ void main(void)
         .data_bits=UART_CFG_DATA_BITS_8,
         .flow_ctrl=UART_CFG_FLOW_CTRL_NONE,
     };
-    midi_uart = device_get_binding(MIDI_UART_LABEL);
+
+    const struct device *midi_uart = device_get_binding(MIDI_UART_LABEL);
     if (! midi_uart){
         LOG_ERR("Unable to open MIDI uart");
         return;
     }
-    if (r = uart_configure(midi_uart, &midi_uart_config)){
-        LOG_ERR("Error configuring MIDI uart: %d", r);
+
+    if (uart_configure(midi_uart, &midi_uart_config)){
+        LOG_ERR("Error configuring MIDI uart");
         return;
     }
+
+    uint8_t cable_id;
+    uint8_t midi_pkt[3] = {0, 0, 0};
+    while (1){
+        if (! usb_midi_wait_from_host(&cable_id, midi_pkt)){
+            continue;
+        }
+
+        uint8_t cmd = midi_pkt[0] >> 4;
+
+        for (size_t i=0; i<midi_datasize(cmd); i++){
+            uart_poll_out(midi_uart, midi_pkt[i]);
+        }
+        do_act_led();
+    }
+}
+
+K_THREAD_DEFINE(to_external_midi_out_tid, 512,
+                to_external_midi_out_func, NULL, NULL, NULL,
+                5, 0, 0);
+
+
+#define kick 0
+#define hat 1
+#define hat_open 2
+#define snare 3
+
+static void midi_beat(uint8_t chan, int steps)
+{
+    const uint8_t noteOn[3] = {(MIDI_NOTE_ON << 4) | chan, 0, 0x7f};
+    if (usb_midi_to_host(1, noteOn)){
+        do_act_led();
+    }
+
+    k_sleep(K_MSEC(steps*62));
+
+    const uint8_t noteOff[3] = {(MIDI_NOTE_OFF << 4) | chan, 0, 0x00};
+    if (usb_midi_to_host(1, noteOff)){
+        do_act_led();
+    }
+}
+
+void main(void)
+{
+    LOG_INF("Starting...");
 
     k_delayed_work_init(&status_led_work, status_led_task);
     k_delayed_work_submit(&status_led_work, K_NO_WAIT);
@@ -180,20 +201,20 @@ void main(void)
     unsigned long beat = 0;
     while (1){
         beat++;
-        MIDI_HIT(kick, 2);
-        MIDI_HIT(hat_open, 2);
+        midi_beat(kick, 2);
+        midi_beat(hat_open, 2);
 
-        MIDI_HIT(hat, 4);
+        midi_beat(hat, 4);
         
-        MIDI_HIT(snare, 2);
-        MIDI_HIT(hat_open, 2);
+        midi_beat(snare, 2);
+        midi_beat(hat_open, 2);
         
         if (beat % 4){
-            MIDI_HIT(hat, 4);
+            midi_beat(hat, 4);
         } else {
-            MIDI_HIT(hat_open, 2);
-            MIDI_HIT(kick, 1);
-            MIDI_HIT(hat, 1);
+            midi_beat(hat_open, 2);
+            midi_beat(kick, 1);
+            midi_beat(hat, 1);
         }
     }
 }

@@ -208,11 +208,68 @@ bool usb_midi_to_host(uint8_t cable_number, const uint8_t midi_pkt[3])
     ring_buf_put_finish(&usb_midi_to_host_buf, allocated);
 
     // Then initiate USB transfer with all available data
-    uint32_t data_ready = ring_buf_get_claim(&usb_midi_to_host_buf, &queued_data, MIDI_BULK_SIZE);
-    if (data_ready > 0){
-        usb_transfer(MIDI_IN_ENDPOINT_ID, queued_data, data_ready, USB_TRANS_WRITE, usb_midi_to_host_done, NULL);
-    } else {
-        ring_buf_get_finish(&usb_midi_to_host_buf, 0);
+    if (! usb_transfer_is_busy(MIDI_IN_ENDPOINT_ID)){
+        uint32_t data_ready = ring_buf_get_claim(&usb_midi_to_host_buf, &queued_data, MIDI_BULK_SIZE);
+        if (data_ready > 0){
+            usb_transfer(MIDI_IN_ENDPOINT_ID, queued_data, data_ready, USB_TRANS_WRITE, usb_midi_to_host_done, NULL);
+        } else {
+            ring_buf_get_finish(&usb_midi_to_host_buf, 0);
+        }
     }
+    return true;
+}
+
+
+/* === Input stream === */
+static K_SEM_DEFINE(usb_midi_from_host_sem, 0, 1);
+RING_BUF_ITEM_DECLARE_POW2(usb_midi_from_host_buf, 5);
+
+static void usb_midi_from_host_done(uint8_t ep, int size, void *data)
+{
+    ARG_UNUSED(ep);
+    ARG_UNUSED(data);
+    if (size > 0){
+        ring_buf_put_finish(&usb_midi_from_host_buf, size);
+    } else {
+        ring_buf_put_finish(&usb_midi_from_host_buf, 0);
+    }
+    k_sem_give(&usb_midi_from_host_sem);
+}
+
+static bool usb_midi_from_host(uint8_t *cable_number, uint8_t midi_pkt[3])
+{
+    // Attempt to get 1 MIDI packet
+    uint8_t *queued_data = NULL;
+    uint32_t data_ready = ring_buf_get_claim(&usb_midi_from_host_buf, &queued_data, 4);
+    if (data_ready < 2){
+        ring_buf_get_finish(&usb_midi_from_host_buf, 0);
+        return false;
+    }
+
+    // Get packet, and commit transaction
+    uint8_t cmd = queued_data[0] & 0xff;
+    *cable_number = queued_data[0] >> 4;
+    memcpy(midi_pkt, &queued_data[1], midi_datasize(cmd));
+    ring_buf_get_finish(&usb_midi_from_host_buf, 1 + midi_datasize(cmd));
+    return true;
+}
+
+bool usb_midi_wait_from_host(uint8_t *cable_number, uint8_t midi_pkt[3])
+{
+    if (! usb_midi_is_configured()){
+        return false;
+    }
+
+    while (! usb_midi_from_host(cable_number, midi_pkt)){
+        uint8_t *queued_data = NULL;
+        uint32_t allocated = ring_buf_put_claim(&usb_midi_from_host_buf, &queued_data, MIDI_BULK_SIZE);
+        if (allocated == 0){
+            ring_buf_put_finish(&usb_midi_from_host_buf, 0);
+        } else {
+            usb_transfer(MIDI_OUT_ENDPOINT_ID, queued_data, allocated, USB_TRANS_READ, usb_midi_from_host_done, NULL);
+            k_sem_take(&usb_midi_from_host_sem, K_FOREVER);
+        }
+    }
+
     return true;
 }

@@ -149,4 +149,6 @@ bool usb_midi_is_configured();
 
 bool usb_midi_to_host(uint8_t cable_number, const uint8_t midi_pkt[3]);
 
+bool usb_midi_wait_from_host(uint8_t *cable_number, uint8_t midi_pkt[3]);
+
 #endif
