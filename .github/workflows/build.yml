@@ -30,7 +30,7 @@ jobs:
         run: git submodule update --init
 
       - name: Build midizephyr for nucleo_f429zi
-        run: python3 -m west build -b nucleo_f429zi midizephyr || cat $(find . -name CMakeError.log)
+        run: python3 -m west build -b nucleo_f429zi midizephyr
         env:
           ZEPHYR_TOOLCHAIN_VARIANT: zephyr
           ZEPHYR_SDK_INSTALL_DIR: /opt/zephyr-sdk
