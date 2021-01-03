@@ -1,6 +1,6 @@
 name: Build
 
-on: [push, pull_request]
+on: push
 
 jobs:
   build:
@@ -38,18 +38,22 @@ jobs:
         with:
           args: 'build "-b nucleo_f429zi midizephyr"'
 
-      - name: Create release
+      - name: Create Github release
         id: create_release
         if: startsWith(github.ref, 'refs/tags/')
         uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
           draft: true
 
-      - name: Publish firmware
+      - name: Publish firmware to release
         id: upload_release_firmware
         if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: build/zephyr/zephyr.bin
