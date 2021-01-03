@@ -1,14 +1,14 @@
 name: Build
 
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+on: push
 
 jobs:
   build:
     runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        target: [midizephyr]
 
     steps:
       - name: Checkout
@@ -40,4 +40,29 @@ jobs:
       - name: Build with west for nucleo f429zi
         uses: docker://zmkfirmware/zephyr-west-action-arm:latest
         with:
-          args: 'build "-b nucleo_f429zi midizephyr"'
+          args: 'build "-b nucleo_f429zi ${{ matrix.target }}"'
+
+      - name: Create Github release
+        id: create_release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/create-release@v1
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Publish firmware to release
+        id: upload_release_firmware
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/zephyr/zephyr.bin
+          asset_name: ${{ matrix.target }}-v${{ github.ref }}.bin
+          asset_content_type: application/binary
