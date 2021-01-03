@@ -41,3 +41,21 @@ jobs:
         uses: docker://zmkfirmware/zephyr-west-action-arm:latest
         with:
           args: 'build "-b nucleo_f429zi midizephyr"'
+
+      - name: Create release
+        id: create_release
+        if: contains(github.ref, '/tags/')
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref }}
+          draft: true
+
+      - name: Publish firmware
+        id: upload_release_firmware
+        if: contains(github.ref, '/tags/')
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/zephyr/zephyr.bin
+          asset_name: firmware.bin
+          asset_content_type: application/binary
