@@ -6,6 +6,10 @@ jobs:
   build:
     runs-on: ubuntu-20.04
 
+    strategy:
+      matrix:
+        target: [midizephyr]
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -36,7 +40,7 @@ jobs:
       - name: Build with west for nucleo f429zi
         uses: docker://zmkfirmware/zephyr-west-action-arm:latest
         with:
-          args: 'build "-b nucleo_f429zi midizephyr"'
+          args: 'build "-b nucleo_f429zi ${{ matrix.target }}"'
 
       - name: Create Github release
         id: create_release
@@ -60,5 +64,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: build/zephyr/zephyr.bin
-          asset_name: firmware.bin
+          asset_name: ${{ matrix.target }}-v${{ github.ref }}.bin
           asset_content_type: application/binary
