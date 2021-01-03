@@ -17,6 +17,11 @@ jobs:
       - name: Checkout submodules
         run: git submodule update --init --depth 1
 
+      - name: West update
+        uses: docker://zmkfirmware/zephyr-west-action-arm:latest
+        with:
+          args: 'update'
+
       - name: Build with west for nucleo f429zi
         uses: docker://zmkfirmware/zephyr-west-action-arm:latest
         with:
