@@ -1,0 +1,43 @@
+name: Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Cache west modules
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-zephyr-modules
+        with:
+          path: |
+            modules/
+            tools/
+            bootloader/
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('.gitmodules') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1
+
+      - name: West update
+        uses: docker://zmkfirmware/zephyr-west-action-arm:latest
+        with:
+          args: 'update'
+
+      - name: Build with west for nucleo f429zi
+        uses: docker://zmkfirmware/zephyr-west-action-arm:latest
+        with:
+          args: 'build "-b nucleo_f429zi midizephyr"'
