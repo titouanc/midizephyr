@@ -14,6 +14,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1
+
       - name: Build with west for nucleo f429zi
         uses: "docker://zmkfirmware/zephyr-west-action-arm:latest"
         with:
