@@ -14,7 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Test west
+      - name: Build with west for nucleo f429zi
         uses: "docker://zmkfirmware/zephyr-west-action-arm:latest"
         with:
-          args: "--version"
+          args: "build -b nucleo_f429zi midizephyr"
