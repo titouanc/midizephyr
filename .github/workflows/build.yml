@@ -18,6 +18,6 @@ jobs:
         run: git submodule update --init --depth 1
 
       - name: Build with west for nucleo f429zi
-        uses: "docker://zmkfirmware/zephyr-west-action-arm:latest"
+        uses: docker://zmkfirmware/zephyr-west-action-arm:latest
         with:
-          args: "build '-b nucleo_f429zi midizephyr'"
+          args: 'build "-b nucleo_f429zi midizephyr"'
