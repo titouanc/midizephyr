@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          submodules: true
 
       - name: Get associated Github release
         if: github.event_name == 'release' && github.event.action == 'created'
@@ -44,9 +46,6 @@ jobs:
             ${{ runner.os }}-build-${{ env.cache-name }}-
             ${{ runner.os }}-build-
             ${{ runner.os }}-
-
-      - name: Checkout submodules
-        run: git submodule update --init --depth 1
 
       - name: West update
         uses: docker://zmkfirmware/zephyr-west-action-arm:latest
