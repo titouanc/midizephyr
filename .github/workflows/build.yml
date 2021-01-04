@@ -1,10 +1,21 @@
-name: Build
+name: Build or release
 
-on: push
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  release:
+    types: [created]
 
 jobs:
-  build:
+  build_or_release:
     runs-on: ubuntu-20.04
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     strategy:
       matrix:
@@ -13,6 +24,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
+      - name: Get associated Github release
+        if: github.event_name == 'release' && github.event.action == 'created'
+        id: get_release
+        uses: bruceadams/get-release@v1.2.2
 
       - name: Cache west modules
         uses: actions/cache@v2
@@ -37,32 +53,17 @@ jobs:
         with:
           args: 'update'
 
-      - name: Build with west for nucleo f429zi
+      - name: Build ${{ matrix.target }} for nucleo f429zi
         uses: docker://zmkfirmware/zephyr-west-action-arm:latest
         with:
           args: 'build "-b nucleo_f429zi ${{ matrix.target }}"'
 
-      - name: Create Github release
-        id: create_release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/create-release@v1
-        continue-on-error: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          draft: false
-          prerelease: false
-
-      - name: Publish firmware to release
+      - name: Publish ${{ matrix.target }} to Github release
+        if: github.event_name == 'release' && github.event.action == 'created'
         id: upload_release_firmware
-        if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_path: build/zephyr/zephyr.bin
-          asset_name: ${{ matrix.target }}-v${{ github.ref }}.bin
-          asset_content_type: application/binary
+          asset_name: ${{ matrix.target }}.bin
+          asset_content_type: application/octet-stream
