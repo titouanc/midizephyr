@@ -48,129 +48,6 @@ static struct usb_ep_cfg_data ep_cfg[] = {
     {.ep_cb=usb_transfer_ep_callback, .ep_addr=MIDI_OUT_ENDPOINT_ID},
 };
 
-/*
- * The USB Unicode bString is encoded in UTF16LE, which means it takes up
- * twice the amount of bytes than the same string encoded in ASCII7.
- * Use this macro to determine the length of the bString array.
- *
- * bString length without null character:
- *   bString_length = (sizeof(initializer_string) - 1) * 2
- * or:
- *   bString_length = sizeof(initializer_string) * 2 - 2
- */
-#define USB_BSTRING_LENGTH(s)       (sizeof(s) * 2 - 2)
-
-/*
- * The length of the string descriptor (bLength) is calculated from the
- * size of the two octets bLength and bDescriptorType plus the
- * length of the UTF16LE string:
- *
- *   bLength = 2 + bString_length
- *   bLength = 2 + sizeof(initializer_string) * 2 - 2
- *   bLength = sizeof(initializer_string) * 2
- * Use this macro to determine the bLength of the string descriptor.
- */
-#define USB_STRING_DESCRIPTOR_LENGTH(s) (sizeof(s) * 2)
-
-struct usb_string_desription {
-    struct usb_string_descriptor lang_descr;
-    struct {
-        uint8_t bLength;
-        uint8_t bDescriptorType;
-        uint8_t bString[USB_BSTRING_LENGTH(CONFIG_USB_DEVICE_MANUFACTURER)];
-    } __packed utf16le_mfr;
-
-    struct {
-        uint8_t bLength;
-        uint8_t bDescriptorType;
-        uint8_t bString[USB_BSTRING_LENGTH(CONFIG_USB_DEVICE_PRODUCT)];
-    } __packed utf16le_product;
-
-    struct {
-        uint8_t bLength;
-        uint8_t bDescriptorType;
-        uint8_t bString[USB_BSTRING_LENGTH(CONFIG_USB_DEVICE_SN)];
-    } __packed utf16le_sn;
-
-    struct {
-        uint8_t bLength;
-        uint8_t bDescriptorType;
-        uint8_t bString[USB_BSTRING_LENGTH(EXTERNAL_MIDI_IN_NAME)];
-    } __packed utf16le_EXTERNAL_MIDI_IN;
-    struct {
-        uint8_t bLength;
-        uint8_t bDescriptorType;
-        uint8_t bString[USB_BSTRING_LENGTH(EXTERNAL_MIDI_OUT_NAME)];
-    } __packed utf16le_EXTERNAL_MIDI_OUT;
-    struct {
-        uint8_t bLength;
-        uint8_t bDescriptorType;
-        uint8_t bString[USB_BSTRING_LENGTH(EMBEDDED_OUT_INTERNAL_MIDI_IN_NAME)];
-    } __packed utf16le_EMBEDDED_OUT_INTERNAL_MIDI_IN;
-    struct {
-        uint8_t bLength;
-        uint8_t bDescriptorType;
-        uint8_t bString[USB_BSTRING_LENGTH(EMBEDDED_OUT_EXTERNAL_MIDI_IN_NAME)];
-    } __packed utf16le_EMBEDDED_OUT_EXTERNAL_MIDI_IN;
-    struct {
-        uint8_t bLength;
-        uint8_t bDescriptorType;
-        uint8_t bString[USB_BSTRING_LENGTH(EMBEDDED_IN_EXTERNAL_MIDI_OUT_NAME)];
-    } __packed utf16le_EMBEDDED_IN_EXTERNAL_MIDI_OUT;
-} __packed;
-
-
-USBD_STRING_DESCR_DEFINE(primary)
-struct usb_string_desription string_descr = {
-    .lang_descr = {
-        .bLength = sizeof(struct usb_string_descriptor),
-        .bDescriptorType = USB_STRING_DESC,
-        .bString = sys_cpu_to_le16(0x0409),
-    },
-    
-    .utf16le_mfr = {
-        .bLength = USB_STRING_DESCRIPTOR_LENGTH(CONFIG_USB_DEVICE_MANUFACTURER),
-        .bDescriptorType = USB_STRING_DESC,
-        .bString = CONFIG_USB_DEVICE_MANUFACTURER,
-    },
-    .utf16le_product = {
-        .bLength = USB_STRING_DESCRIPTOR_LENGTH(CONFIG_USB_DEVICE_PRODUCT),
-        .bDescriptorType = USB_STRING_DESC,
-        .bString = CONFIG_USB_DEVICE_PRODUCT,
-    },
-    .utf16le_sn = {
-        .bLength = USB_STRING_DESCRIPTOR_LENGTH(CONFIG_USB_DEVICE_SN),
-        .bDescriptorType = USB_STRING_DESC,
-        .bString = CONFIG_USB_DEVICE_SN,
-    },
-
-    .utf16le_EXTERNAL_MIDI_IN = {
-        .bLength = USB_STRING_DESCRIPTOR_LENGTH(EXTERNAL_MIDI_IN_NAME),
-        .bDescriptorType = USB_STRING_DESC,
-        .bString = EXTERNAL_MIDI_IN_NAME,
-    },
-    .utf16le_EXTERNAL_MIDI_OUT = {
-        .bLength = USB_STRING_DESCRIPTOR_LENGTH(EXTERNAL_MIDI_OUT_NAME),
-        .bDescriptorType = USB_STRING_DESC,
-        .bString = EXTERNAL_MIDI_OUT_NAME,
-    },
-    .utf16le_EMBEDDED_OUT_INTERNAL_MIDI_IN = {
-        .bLength = USB_STRING_DESCRIPTOR_LENGTH(EMBEDDED_OUT_INTERNAL_MIDI_IN_NAME),
-        .bDescriptorType = USB_STRING_DESC,
-        .bString = EMBEDDED_OUT_INTERNAL_MIDI_IN_NAME,
-    },
-    .utf16le_EMBEDDED_OUT_EXTERNAL_MIDI_IN = {
-        .bLength = USB_STRING_DESCRIPTOR_LENGTH(EMBEDDED_OUT_EXTERNAL_MIDI_IN_NAME),
-        .bDescriptorType = USB_STRING_DESC,
-        .bString = EMBEDDED_OUT_EXTERNAL_MIDI_IN_NAME,
-    },
-    .utf16le_EMBEDDED_IN_EXTERNAL_MIDI_OUT = {
-        .bLength = USB_STRING_DESCRIPTOR_LENGTH(EMBEDDED_IN_EXTERNAL_MIDI_OUT_NAME),
-        .bDescriptorType = USB_STRING_DESC,
-        .bString = EMBEDDED_IN_EXTERNAL_MIDI_OUT_NAME,
-    },
-};
-
 USBD_CLASS_DESCR_DEFINE(primary, midistreaming) struct usb_midi_if_descriptor midi_cfg = {
     .if0={
         .bLength=9,
@@ -186,19 +63,19 @@ USBD_CLASS_DESCR_DEFINE(primary, midistreaming) struct usb_midi_if_descriptor mi
     .cs_if0=MIDISTREAMING_CONFIG(
         /* === USB-MIDI elements === */
         /* Embedded MIDI from host */
-        MIDI_JACKIN_DESCRIPTOR(JACK_EMBEDDED, EMBEDDED_IN_EXTERNAL_MIDI_OUT_ID, 8),
+        MIDI_JACKIN_DESCRIPTOR(JACK_EMBEDDED, EMBEDDED_IN_EXTERNAL_MIDI_OUT_ID, 0),
         /* External MIDI OUT socket */
-        MIDI_JACKOUT_DESCRIPTOR(JACK_EXTERNAL, EXTERNAL_MIDI_OUT_ID, 5,
+        MIDI_JACKOUT_DESCRIPTOR(JACK_EXTERNAL, EXTERNAL_MIDI_OUT_ID, 0,
             EMBEDDED_IN_EXTERNAL_MIDI_OUT_ID, 1
         ),
         /* External MIDI IN socket */
-        MIDI_JACKIN_DESCRIPTOR( JACK_EXTERNAL, EXTERNAL_MIDI_IN_ID, 4),
+        MIDI_JACKIN_DESCRIPTOR( JACK_EXTERNAL, EXTERNAL_MIDI_IN_ID, 0),
         /* Embedded MIDI to host from external MIDI */
-        MIDI_JACKOUT_DESCRIPTOR(JACK_EMBEDDED, EMBEDDED_OUT_EXTERNAL_MIDI_IN_ID, 7,
+        MIDI_JACKOUT_DESCRIPTOR(JACK_EMBEDDED, EMBEDDED_OUT_EXTERNAL_MIDI_IN_ID, 0,
             EXTERNAL_MIDI_IN_ID, 1
         ),
         /* Embedded MIDI to host from internal MIDI (sensors) */
-        MIDI_JACKOUT_DESCRIPTOR(JACK_EMBEDDED, EMBEDDED_OUT_INTERNAL_MIDI_IN_ID, 6),
+        MIDI_JACKOUT_DESCRIPTOR(JACK_EMBEDDED, EMBEDDED_OUT_INTERNAL_MIDI_IN_ID, 0),
         
         /* === USB-MIDI endpoints === */
         /* Bulk endpoint MIDI_IN with 2 embedded MIDI to host */
