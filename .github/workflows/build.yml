@@ -19,7 +19,7 @@ jobs:
 
     strategy:
       matrix:
-        target: [midizephyr]
+        target: [midizephyr, kinesta]
 
     steps:
       - name: Checkout

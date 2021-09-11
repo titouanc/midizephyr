@@ -1,0 +1,31 @@
+/ {
+    pwmleds {
+        compatible = "pwm-leds";
+
+        pad_pwm_r: pad_pwm_r_led {
+            pwms = <&pwm1 1 0 PWM_POLARITY_NORMAL>;
+            label = "PAD_PWM_R";
+        };
+
+        pad_pwm_g: pad_pwm_g_led {
+            pwms = <&pwm1 3 0 PWM_POLARITY_NORMAL>;
+            label = "PAD_PWM_G";
+        };
+
+        pad_pwm_b: pad_pwm_b_led {
+            pwms = <&pwm1 2 0 PWM_POLARITY_NORMAL>;
+            label = "PAD_PWM_B";
+        };
+    };
+
+    gpio_keys {
+        pad_out: pad_out_led {
+            label = "PAD_OUT";
+            gpios = <&arduino_header 10 0>;
+        };
+    };
+};
+
+&pwm1 {
+    pinctrl-0 = < &tim1_ch1_pe9 &tim1_ch2_pe11 &tim1_ch3_pe13 >;
+};
