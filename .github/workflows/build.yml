@@ -1,4 +1,4 @@
-name: Build or release
+name: CI
 
 on:
   push:
@@ -11,8 +11,62 @@ on:
     types: [created]
 
 jobs:
-  build_or_release:
-    runs-on: ubuntu-20.04
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    container:
+      image: zmkfirmware/zmk-build-arm:2.5
+
+    strategy:
+      matrix:
+        target: [midizephyr, kinesta]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - name: Install cmake 3.21
+      working-directory: /
+      run: |
+        apt-get update
+        apt-get install --no-install-recommends -y wget
+        wget https://github.com/Kitware/CMake/releases/download/v3.21.2/cmake-3.21.2-linux-x86_64.sh
+        echo "3310362c6fe4d4b2dc00823835f3d4a7171bbd73deb7d059738494761f1c908c  cmake-3.21.2-linux-x86_64.sh" | sha256sum --check
+        sh cmake-3.21.2-linux-x86_64.sh --skip-license
+
+    - name: Cache west modules
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-zephyr-modules
+      with:
+        path: |
+          modules/
+          tools/
+          bootloader/
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('.gitmodules') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+
+    - name: West update
+      run: west update
+
+    - name: Build ${{ matrix.target }} for nucleo f429zi
+      run: west build -b nucleo_f429zi ${{ matrix.target }}
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: ${{ matrix.target }}.bin
+        path: build/zephyr/zephyr.bin
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'created'
+    needs: [ build ]
 
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -20,49 +74,20 @@ jobs:
     strategy:
       matrix:
         target: [midizephyr, kinesta]
-
+    
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          submodules: true
+    - id: get_release
+      uses: bruceadams/get-release@v1.2.3
 
-      - name: Get associated Github release
-        if: github.event_name == 'release' && github.event.action == 'created'
-        id: get_release
-        uses: bruceadams/get-release@v1.2.3
+    - uses: actions/download-artifact@v2
+      with:
+        name: ${{ matrix.target }}.bin
 
-      - name: Cache west modules
-        uses: actions/cache@v2
-        env:
-          cache-name: cache-zephyr-modules
-        with:
-          path: |
-            modules/
-            tools/
-            bootloader/
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('.gitmodules') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
-
-      - name: West update
-        uses: docker://zmkfirmware/zephyr-west-action-arm:latest
-        with:
-          args: 'update'
-
-      - name: Build ${{ matrix.target }} for nucleo f429zi
-        uses: docker://zmkfirmware/zephyr-west-action-arm:latest
-        with:
-          args: 'build "-b nucleo_f429zi ${{ matrix.target }}"'
-
-      - name: Publish ${{ matrix.target }} to Github release
-        if: github.event_name == 'release' && github.event.action == 'created'
-        id: upload_release_firmware
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.get_release.outputs.upload_url }}
-          asset_path: build/zephyr/zephyr.bin
-          asset_name: ${{ matrix.target }}.bin
-          asset_content_type: application/octet-stream
+    - name: Publish ${{ matrix.target }} to Github release
+      id: upload_release_firmware
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ steps.get_release.outputs.upload_url }}
+        asset_path: ${{ matrix.target }}.bin
+        asset_name: ${{ matrix.target }}.bin
+        asset_content_type: application/octet-stream
