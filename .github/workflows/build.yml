@@ -27,11 +27,11 @@ jobs:
       with:
         submodules: true
 
-    - name: Install cmake 3.21
+    - name: Install cmake 3.21 and toolchain arm-none-eabi
       working-directory: /usr
       run: |
         apt-get update
-        apt-get install --no-install-recommends -y wget
+        apt-get install --no-install-recommends -y wget gcc-arm-none-eabi
         wget https://github.com/Kitware/CMake/releases/download/v3.21.2/cmake-3.21.2-linux-x86_64.sh
         echo "3310362c6fe4d4b2dc00823835f3d4a7171bbd73deb7d059738494761f1c908c  cmake-3.21.2-linux-x86_64.sh" | sha256sum --check
         sh cmake-3.21.2-linux-x86_64.sh --skip-license
@@ -56,6 +56,9 @@ jobs:
 
     - name: Build ${{ matrix.target }} for nucleo f429zi
       run: west build -b nucleo_f429zi ${{ matrix.target }}
+      env:
+        GNUARMEMB_TOOLCHAIN_PATH: /usr
+        ZEPHYR_TOOLCHAIN_VARIANT: gnuarmemb
 
     - uses: actions/upload-artifact@v2
       with:
