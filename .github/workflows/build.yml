@@ -28,7 +28,7 @@ jobs:
         submodules: true
 
     - name: Install cmake 3.21
-      working-directory: /
+      working-directory: /usr
       run: |
         apt-get update
         apt-get install --no-install-recommends -y wget
