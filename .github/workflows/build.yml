@@ -22,11 +22,6 @@ jobs:
         target: [midizephyr, kinesta]
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-      with:
-        submodules: true
-
     - name: Install cmake 3.21 and toolchain arm-none-eabi
       working-directory: /usr
       run: |
@@ -35,6 +30,11 @@ jobs:
         wget https://github.com/Kitware/CMake/releases/download/v3.21.2/cmake-3.21.2-linux-x86_64.sh
         echo "3310362c6fe4d4b2dc00823835f3d4a7171bbd73deb7d059738494761f1c908c  cmake-3.21.2-linux-x86_64.sh" | sha256sum --check
         sh cmake-3.21.2-linux-x86_64.sh --skip-license
+
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: true
 
     - name: Cache west modules
       uses: actions/cache@v2
@@ -91,6 +91,6 @@ jobs:
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ steps.get_release.outputs.upload_url }}
-        asset_path: ${{ matrix.target }}.bin
+        asset_path: zephyr.bin
         asset_name: ${{ matrix.target }}.bin
         asset_content_type: application/octet-stream
