@@ -14,22 +14,25 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    container:
-      image: zmkfirmware/zmk-build-arm:2.5
-
     strategy:
       matrix:
         target: [midizephyr, kinesta]
 
     steps:
-    - name: Install cmake 3.21 and toolchain arm-none-eabi
+    - name: Install system dependencies
+      run: |
+        apt update
+        apt install --no-install-recommends -y wget gcc-arm-none-eabi python3-pip
+
+    - name: Install cmake 3.21
       working-directory: /usr
       run: |
-        apt-get update
-        apt-get install --no-install-recommends -y wget gcc-arm-none-eabi
         wget https://github.com/Kitware/CMake/releases/download/v3.21.2/cmake-3.21.2-linux-x86_64.sh
         echo "3310362c6fe4d4b2dc00823835f3d4a7171bbd73deb7d059738494761f1c908c  cmake-3.21.2-linux-x86_64.sh" | sha256sum --check
         sh cmake-3.21.2-linux-x86_64.sh --skip-license
+
+    - name: Install west
+      run: pip install west
 
     - name: Checkout
       uses: actions/checkout@v2
