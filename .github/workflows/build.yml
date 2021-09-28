@@ -31,13 +31,13 @@ jobs:
         echo "3310362c6fe4d4b2dc00823835f3d4a7171bbd73deb7d059738494761f1c908c  cmake-3.21.2-linux-x86_64.sh" | sha256sum --check
         sudo sh cmake-3.21.2-linux-x86_64.sh --skip-license
 
-    - name: Install west
-      run: pip install west
-
     - name: Checkout
       uses: actions/checkout@v2
       with:
         submodules: true
+
+    - name: Install Python dependencies
+      run: pip install -r zephyr/scripts/requirements-base.txt
 
     - name: Cache west modules
       uses: actions/cache@v2
