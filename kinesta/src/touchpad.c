@@ -1,10 +1,10 @@
-#include "rgb_pad.h"
+#include "touchpad.h"
 
 #include <drivers/pwm.h>
 #include <logging/log.h>
-LOG_MODULE_REGISTER(rgb_pad);
+LOG_MODULE_REGISTER(touchpad);
 
-int configure_pad(const rgb_pad *pad)
+int touchpad_init(const touchpad *pad)
 {
     int r;
 
@@ -37,31 +37,35 @@ int configure_pad(const rgb_pad *pad)
 }
 
 #define PWM_OVERSAMPLE_BITS 2
-#define PWM_PERIOD (1 << (PWM_OVERSAMPLE_BITS + COLOR_CHAN_BITS))
+#define PWM_PERIOD (1 << (PWM_OVERSAMPLE_BITS + TOUCHPAD_COLOR_CHAN_BITS))
 
-static int set_color_channel(const struct gpio_dt_spec *spec, int value)
+static int touchpad_set_color_channel(const struct gpio_dt_spec *spec, int value)
 {
-    return pwm_pin_set_usec(spec->port, spec->pin, PWM_PERIOD, (value << PWM_OVERSAMPLE_BITS), spec->dt_flags);
+    return pwm_pin_set_usec(
+        spec->port, spec->pin,
+        PWM_PERIOD,
+        (value << PWM_OVERSAMPLE_BITS),
+        spec->dt_flags
+    );
 }
 
-int set_pad_color(const rgb_pad *pad, uint32_t color)
+int touchpad_set_color(const touchpad *pad, uint32_t color)
 {
-    int r = (color >> (2 * COLOR_CHAN_BITS)) & COLOR_CHAN_MAX;
-    int g = (color >> COLOR_CHAN_BITS) & COLOR_CHAN_MAX;
-    int b = (color >>  0) & COLOR_CHAN_MAX;
+    int r = (color >> (2 * TOUCHPAD_COLOR_CHAN_BITS)) & TOUCHPAD_COLOR_CHAN_MAX;
+    int g = (color >> TOUCHPAD_COLOR_CHAN_BITS) & TOUCHPAD_COLOR_CHAN_MAX;
+    int b = (color >>  0) & TOUCHPAD_COLOR_CHAN_MAX;
 
-    if (set_color_channel(&pad->r, r)) {
+    if (touchpad_set_color_channel(&pad->r, r)) {
         LOG_ERR("Unable to set pad->r");
         return -EIO;
     }
-    if (set_color_channel(&pad->g, g)) {
+    if (touchpad_set_color_channel(&pad->g, g)) {
         LOG_ERR("Unable to set pad->g");
         return -EIO;
     }
-    if (set_color_channel(&pad->b, b)) {
+    if (touchpad_set_color_channel(&pad->b, b)) {
         LOG_ERR("Unable to set pad->b");
         return -EIO;
     }
-    // printk("%d => rgb(%d,%d,%d)\n", color, r, g, b);
     return 0;
 }

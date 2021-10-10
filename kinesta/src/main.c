@@ -7,9 +7,9 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(app);
 
-#include "rgb_pad.h"
+#include "touchpad.h"
 
-const rgb_pad pad = RGB_PAD_DT_SPEC(pad);
+const touchpad pad = TOUCHPAD_DT_SPEC(pad);
 
 const int THRESHOLD_CM = 60;
 
@@ -22,11 +22,11 @@ void main(void)
     if (! sensor){
         return;
     }
-    if (configure_pad(&pad)){
+    if (touchpad_init(&pad)){
         return;
     }
 
-    set_pad_color(&pad, COLOR_RGB(0, 0, 0));
+    touchpad_set_color(&pad, TOUCHPAD_COLOR_RGB(0, 0, 0));
 
     bool is_in_tracking_zone = false;
 
@@ -55,15 +55,15 @@ void main(void)
         is_in_tracking_zone = is_now_in_tracking_zone;
 
         if (gpio_pin_get_dt(&pad.out) > 0){
-            set_pad_color(&pad, COLOR_RGB(color_intensity, color_intensity, 0));
+            touchpad_set_color(&pad, TOUCHPAD_COLOR_RGB(color_intensity, color_intensity, 0));
         } else if (is_in_tracking_zone){
-            int red = (THRESHOLD_CM - distance_cm) * COLOR_CHAN_MAX / THRESHOLD_CM;
-            int green = distance_cm * COLOR_CHAN_MAX / THRESHOLD_CM;
-            set_pad_color(&pad, COLOR_RGB(red, green, 0));
+            int red = (THRESHOLD_CM - distance_cm) * TOUCHPAD_COLOR_CHAN_MAX / THRESHOLD_CM;
+            int green = distance_cm * TOUCHPAD_COLOR_CHAN_MAX / THRESHOLD_CM;
+            touchpad_set_color(&pad, TOUCHPAD_COLOR_RGB(red, green, 0));
         } else if (distance_cm < 150) {
-            set_pad_color(&pad, COLOR_RGB(0, 0, COLOR_CHAN_MAX/4));
+            touchpad_set_color(&pad, TOUCHPAD_COLOR_RGB(0, 0, TOUCHPAD_COLOR_CHAN_MAX/2));
         } else {
-            set_pad_color(&pad, COLOR_RGB(0, 0, 0));
+            touchpad_set_color(&pad, TOUCHPAD_COLOR_RGB(0, 0, TOUCHPAD_COLOR_CHAN_MAX / 64));
         }
     }
 }
