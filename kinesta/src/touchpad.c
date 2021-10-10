@@ -8,28 +8,28 @@ int touchpad_init(const touchpad *pad)
 {
     int r;
 
-    printk("pad->out: %s %d\n", pad->out.port->name, pad->out.pin);
+    LOG_DBG("pad->out: %s %d\n", pad->out.port->name, pad->out.pin);
     r = gpio_pin_configure_dt(&pad->out, GPIO_INPUT | pad->out.dt_flags);
     if (r){
         LOG_ERR("Unable to configure pad->out");
         return r;
     }
 
-    printk("pad->r: %s %d\n", pad->r.port->name, pad->r.pin);
+    LOG_DBG("pad->r: %s %d\n", pad->r.port->name, pad->r.pin);
     if (!device_is_ready(pad->r.port)) {
-        printk("Error: PWM device %s is not ready\n", pad->r.port->name);
+        LOG_ERR("PWM device %s is not ready\n", pad->r.port->name);
         return -EAGAIN;
     }
 
-    printk("pad->g: %s %d\n", pad->g.port->name, pad->g.pin);
+    LOG_DBG("pad->g: %s %d\n", pad->g.port->name, pad->g.pin);
     if (!device_is_ready(pad->g.port)) {
-        printk("Error: PWM device %s is not ready\n", pad->g.port->name);
+        LOG_ERR("PWM device %s is not ready\n", pad->g.port->name);
         return -EAGAIN;
     }
 
-    printk("pad->b: %s %d\n", pad->b.port->name, pad->b.pin);
+    LOG_DBG("pad->b: %s %d\n", pad->b.port->name, pad->b.pin);
     if (!device_is_ready(pad->b.port)) {
-        printk("Error: PWM device %s is not ready\n", pad->b.port->name);
+        LOG_ERR("PWM device %s is not ready\n", pad->b.port->name);
         return -EAGAIN;
     }
 
