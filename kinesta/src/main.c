@@ -26,7 +26,7 @@ void main(void)
         return;
     }
 
-    touchpad_set_color(&pad, TOUCHPAD_COLOR_RGB(0, 0, 0));
+    touchpad_set_color(&pad, COLOR_RGB(0, 0, 0));
 
     bool is_in_tracking_zone = false;
 
@@ -55,15 +55,15 @@ void main(void)
         is_in_tracking_zone = is_now_in_tracking_zone;
 
         if (gpio_pin_get_dt(&pad.out) > 0){
-            touchpad_set_color(&pad, TOUCHPAD_COLOR_RGB(color_intensity, color_intensity, 0));
+            touchpad_set_color(&pad, COLOR_RGB(color_intensity, color_intensity, 0));
         } else if (is_in_tracking_zone){
-            int red = (THRESHOLD_CM - distance_cm) * TOUCHPAD_COLOR_CHAN_MAX / THRESHOLD_CM;
-            int green = distance_cm * TOUCHPAD_COLOR_CHAN_MAX / THRESHOLD_CM;
-            touchpad_set_color(&pad, TOUCHPAD_COLOR_RGB(red, green, 0));
+            int red = (THRESHOLD_CM - distance_cm) * COLOR_CHAN_MAX / THRESHOLD_CM;
+            int green = distance_cm * COLOR_CHAN_MAX / THRESHOLD_CM;
+            touchpad_set_color(&pad, COLOR_RGB(red, green, 0));
         } else if (distance_cm < 150) {
-            touchpad_set_color(&pad, TOUCHPAD_COLOR_RGB(0, 0, TOUCHPAD_COLOR_CHAN_MAX/2));
+            touchpad_set_color(&pad, COLOR_RGB(0, 0, COLOR_CHAN_MAX/2));
         } else {
-            touchpad_set_color(&pad, TOUCHPAD_COLOR_RGB(0, 0, TOUCHPAD_COLOR_CHAN_MAX / 64));
+            touchpad_set_color(&pad, COLOR_RGB(0, 0, COLOR_CHAN_MAX / 64));
         }
     }
 }

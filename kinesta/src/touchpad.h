@@ -3,6 +3,7 @@
 
 #include <drivers/gpio.h>
 
+#include "color.h"
 
 typedef struct {
     struct gpio_dt_spec out;
@@ -24,18 +25,8 @@ typedef struct {
     .b = PWM_DT_SPEC_GET(DT_NODELABEL(name##_pwm_b)),         \
 }
 
-
-#define TOUCHPAD_COLOR_CHAN_BITS 10
-#define TOUCHPAD_COLOR_CHAN_MAX ((1 << TOUCHPAD_COLOR_CHAN_BITS) - 1)
-#define TOUCHPAD_COLOR_RGB(r, g, b)               \
-    (                                    \
-        ((r) << (2 * TOUCHPAD_COLOR_CHAN_BITS)) | \
-        ((g) << TOUCHPAD_COLOR_CHAN_BITS) |       \
-        (b)                              \
-    )
-
 int touchpad_init(const touchpad *pad);
 
-int touchpad_set_color(const touchpad *pad, uint32_t color);
+int touchpad_set_color(const touchpad *pad, color_t color);
 
 #endif
