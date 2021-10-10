@@ -14,14 +14,14 @@
 LOG_MODULE_REGISTER(usb_midi);
 
 /*             
-MIDI sockets   USB-MIDI function                USB function   
-------------   -----------------                ------------
+MIDI sockets   USB-MIDI function                USB function (host)
+------------   -----------------                -------------------
 
                ---------------------------
                |                         |
-               *   EMB_OUT_INT_MIDI_IN >-*--+ 0
-               |                         |  +---> MIDI_IN_ENDPOINT
-EXT_MIDI_IN  >-*-> EMB_OUT_EXT_MIDI_IN >-*--+ 1
+               *   EMB_OUT_INT_MIDI_IN >-*-0-+
+               |                         |   +---> MIDI_IN_ENDPOINT
+EXT_MIDI_IN  >-*-> EMB_OUT_EXT_MIDI_IN >-*-1-+
                |                         |
 EXT_MIDI_OUT <-*-< EMB_IN_EXT_MIDI_OUT <-*------< MIDI_OUT_ENDPOINT
                |                         |
