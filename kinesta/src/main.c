@@ -33,8 +33,6 @@ void main(void)
     }
 
     touchpad_set_color(&pad, COLOR_RGB(0, 0, 0));
-    encoder_set_color(&enc, COLOR_BLUE);
-    k_sleep(K_MSEC(3000));
 
     bool is_in_tracking_zone = false;
 
@@ -76,11 +74,17 @@ void main(void)
             color = COLOR_RGB(0, 0, COLOR_CHAN_MAX / 64);
         }
 
-        if (i%100 == 0){
-            printk("%d cm (#%06X)\n", distance_cm, color);
+        float encoder_value;
+        if (encoder_get_value(&enc, &encoder_value)){
+            printk("Error getting encoder value !\n");
+            return;
+        }
+
+        if (i%10 == 0){
+            printk("%d cm (#%06X) / %f\n", distance_cm, color, encoder_value);
         }
         
         touchpad_set_color(&pad, color);
-        encoder_set_color(&enc, color);
+        encoder_set_color(&enc, color_map(COLOR_GREEN, COLOR_RED, encoder_value));
     }
 }

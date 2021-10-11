@@ -22,4 +22,6 @@ int encoder_init(const encoder *enc);
 
 int encoder_set_color(const encoder *enc, color_t color);
 
+int encoder_get_value(const encoder *enc, float *value);
+
 #endif
