@@ -2,10 +2,10 @@
 #include <drivers/i2c.h>
 #include <sys/byteorder.h>
 
+#include "config.h"
+
 #include <logging/log.h>
 LOG_MODULE_REGISTER(rgb_encoder);
-
-#define ENCODER_N_STEPS 16
 
 #define COLOR_CHAN_RSHIFT (COLOR_CHAN_BITS - 8)
 

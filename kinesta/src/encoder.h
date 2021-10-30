@@ -9,10 +9,6 @@
     .addr=DT_REG_ADDR(DT_NODELABEL(name))\
 }
 
-/*
-}
-*/
-
 typedef struct {
     const struct device *i2c;
     uint8_t addr;
