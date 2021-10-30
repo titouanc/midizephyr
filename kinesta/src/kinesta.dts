@@ -2,32 +2,40 @@
     pwmleds {
         compatible = "pwm-leds";
 
-        pad_pwm_r: pad_pwm_r_led {
+        pad1_pwm_r: pad1_pwm_r_led {
+            // D6
             pwms = <&pwm1 1 0 PWM_POLARITY_NORMAL>;
-            label = "PAD_PWM_R";
+            label = "PAD1_PWM_R";
         };
 
-        pad_pwm_g: pad_pwm_g_led {
+        pad1_pwm_g: pad1_pwm_g_led {
+            // D3
             pwms = <&pwm1 3 0 PWM_POLARITY_NORMAL>;
-            label = "PAD_PWM_G";
+            label = "PAD1_PWM_G";
         };
 
-        pad_pwm_b: pad_pwm_b_led {
+        pad1_pwm_b: pad1_pwm_b_led {
+            // D5
             pwms = <&pwm1 2 0 PWM_POLARITY_NORMAL>;
-            label = "PAD_PWM_B";
+            label = "PAD1_PWM_B";
         };
     };
 
     gpio_keys {
-        pad_out: pad_out_led {
-            label = "PAD_OUT";
+        pad1_out: pad1_out_led {
+            // D4
+            label = "PAD1_OUT";
             gpios = <&arduino_header 10 0>;
         };
     };
 };
 
 &pwm1 {
-    pinctrl-0 = < &tim1_ch1_pe9 &tim1_ch2_pe11 &tim1_ch3_pe13 >;
+    pinctrl-0 = <
+        &tim1_ch1_pe9
+        &tim1_ch2_pe11
+        &tim1_ch3_pe13
+    >;
 };
 
 &arduino_i2c {
@@ -35,17 +43,5 @@
         compatible = "duppa,i2cencoderv21";
         label = "ENCODER1";
         reg = <0x70>;
-    };
-
-    encoder2: encoder@71 {
-        compatible = "duppa,i2cencoderv21";
-        label = "ENCODER2";
-        reg = <0x71>;
-    };
-
-    encoder3: encoder@73 {
-        compatible = "duppa,i2cencoderv21";
-        label = "ENCODER3";
-        reg = <0x73>;
     };
 };
