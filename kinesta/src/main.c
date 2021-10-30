@@ -10,36 +10,46 @@ LOG_MODULE_REGISTER(app);
 #include "touchpad.h"
 #include "encoder.h"
 
-const touchpad pad = TOUCHPAD_DT_SPEC(pad);
+const struct device *sensor;
 
-const encoder enc = ENCODER_DT_SPEC(encoder1);
+const touchpad pad = TOUCHPAD_DT_SPEC(pad1);
+
+const encoder encoders[] = {
+    ENCODER_DT_SPEC(encoder1),
+};
 
 const int THRESHOLD_CM = 60;
 
 void main(void)
 {
+    int i;
     int distance_cm, measured_distance_cm, color_intensity;
     struct sensor_value value;
-    const struct device *sensor = device_get_binding("VL53L0X_C");
+    sensor = device_get_binding("VL53L0X_L");
 
     if (! sensor){
         return;
     }
+
     if (touchpad_init(&pad)){
         return;
     }
-    if (encoder_init(&enc)){
-        return;
+    
+    for (i=0; i<ARRAY_SIZE(encoders); i++){
+        if (encoder_init(&encoders[i])){
+            return;
+        }
     }
 
     touchpad_set_color(&pad, COLOR_RGB(0, 0, 0));
 
+    color_t touchpad_color;
+    float encoder_value;
     bool is_in_tracking_zone = false;
+    bool is_now_in_tracking_zone = false;
 
     printk("Starting mainloop !\n");
-    int i=0;
     while (1){
-        i++;
         if (sensor_sample_fetch(sensor)){
             return;
         }
@@ -55,7 +65,8 @@ void main(void)
             distance_cm = measured_distance_cm;
         }
 
-        bool is_now_in_tracking_zone = false;
+        // Hysteresis on enter/exit tracking zone
+        is_now_in_tracking_zone = false;
         if (is_in_tracking_zone){
             is_now_in_tracking_zone = distance_cm < THRESHOLD_CM;
         } else {
@@ -63,28 +74,28 @@ void main(void)
         }
         is_in_tracking_zone = is_now_in_tracking_zone;
 
-        color_t color;
+        // Update touchpad color
         if (gpio_pin_get_dt(&pad.out) > 0){
-            color = COLOR_RGB(color_intensity, color_intensity, 0);
+            // Pad touched: yellow with intensity = current intensity
+            touchpad_color = COLOR_WHITE;
         } else if (is_in_tracking_zone){
-            color = color_map(COLOR_RED, COLOR_GREEN, (float) distance_cm / THRESHOLD_CM);
+            // In tracking zone: colormap green to red
+            touchpad_color = color_map(COLOR_RED, COLOR_GREEN, (float) distance_cm / THRESHOLD_CM);
         } else if (distance_cm < 150) {
-            color = COLOR_RGB(0, 0, COLOR_CHAN_MAX / 2);
+            // Above the sensor but out of tracking zone: blue
+            touchpad_color = COLOR_BLUE;
         } else {
-            color = COLOR_RGB(0, 0, COLOR_CHAN_MAX / 64);
+            // Otherwise: light cyan
+            touchpad_color = COLOR_RGB(0, COLOR_CHAN_MAX / 64, COLOR_CHAN_MAX / 64);
         }
+        touchpad_set_color(&pad, touchpad_color);
 
-        float encoder_value;
-        if (encoder_get_value(&enc, &encoder_value)){
-            printk("Error getting encoder value !\n");
-            return;
+        for (i=0; i<ARRAY_SIZE(encoders); i++){
+            if (encoder_get_value(&encoders[i], &encoder_value)){
+                printk("Error getting encoder value !\n");
+                return;
+            }
+            encoder_set_color(&encoders[i], color_map(COLOR_GREEN, COLOR_RED, encoder_value));
         }
-
-        if (i%10 == 0){
-            printk("%d cm (#%06X) / %f\n", distance_cm, color, encoder_value);
-        }
-        
-        touchpad_set_color(&pad, color);
-        encoder_set_color(&enc, color_map(COLOR_GREEN, COLOR_RED, encoder_value));
     }
 }

@@ -20,6 +20,7 @@ typedef uint32_t color_t;
 #define COLOR_RED   COLOR_RGB(COLOR_CHAN_MAX, 0, 0)
 #define COLOR_GREEN COLOR_RGB(0, COLOR_CHAN_MAX, 0)
 #define COLOR_BLUE  COLOR_RGB(0, 0, COLOR_CHAN_MAX)
+#define COLOR_WHITE (COLOR_RED | COLOR_GREEN | COLOR_BLUE)
 
 /**
  * @brief      Map value between 2 colors
