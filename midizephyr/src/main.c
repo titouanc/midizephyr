@@ -142,7 +142,7 @@ static void to_external_midi_out_func(void *p1, void *p2, void *p3)
     uint8_t cable_id;
     uint8_t midi_pkt[3] = {0, 0, 0};
     while (1){
-        if (! usb_midi_wait_from_host(&cable_id, midi_pkt)){
+        if (usb_midi_read(&cable_id, midi_pkt)){
             continue;
         }
 
@@ -167,15 +167,15 @@ K_THREAD_DEFINE(to_external_midi_out_tid, 512,
 
 static void midi_beat(uint8_t chan, int steps)
 {
-    const uint8_t noteOn[3] = {(MIDI_NOTE_ON << 4) | chan, 0, 0x7f};
-    if (usb_midi_to_host(1, noteOn)){
+    const uint8_t noteOn[3] = MIDI_NOTE_ON(chan, 0, 127);
+    if (usb_midi_write(1, noteOn) == 0){
         do_act_led();
     }
 
     k_sleep(K_MSEC(steps*62));
 
-    const uint8_t noteOff[3] = {(MIDI_NOTE_OFF << 4) | chan, 0, 0x00};
-    if (usb_midi_to_host(1, noteOff)){
+    const uint8_t noteOff[3] = MIDI_NOTE_OFF(chan, 0, 127);
+    if (usb_midi_write(1, noteOff) == 0){
         do_act_led();
     }
 }
