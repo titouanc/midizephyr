@@ -284,12 +284,6 @@ int usb_midi_write(uint8_t cable_number, const uint8_t midi_pkt[3])
     int r;
     uint8_t *buf;
 
-    r = k_sem_take(&usb_midi_to_host_sem, K_FOREVER);
-    if (r){
-        LOG_ERR("Unable to acquire write lock");
-        return r;
-    }
-
     uint8_t midi_cmd = midi_pkt[0] >> 4;
     size_t requested_size = 1 + midi_datasize(midi_cmd);
     size_t claimed_size = ring_buf_put_claim(&usb_midi_to_host_buf, &buf, requested_size);
@@ -304,7 +298,6 @@ int usb_midi_write(uint8_t cable_number, const uint8_t midi_pkt[3])
     }
     
     ring_buf_put_finish(&usb_midi_to_host_buf, claimed_size);
-    k_sem_give(&usb_midi_to_host_sem);
     return r;
 }
 
