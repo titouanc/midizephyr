@@ -21,7 +21,7 @@ kinesta_functional_block kfbs[] = {
 
 void main(void)
 {
-    int i;
+    int i, j;
 
     if (usb_enable(NULL) == 0){
         LOG_INF("USB enabled");

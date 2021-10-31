@@ -120,10 +120,17 @@ struct usb_midi_if_descriptor {
 #define MIDI_CMD_PITCH_BEND     0x0E
 #define MIDI_CMD_SINGLE_BYTE    0x0F
 
+#define MIDI_CMD_3B(cmd, channel, p1, p2) \
+    {(cmd << 4) | (channel), (p1), (p2)}
+
 #define MIDI_NOTE_ON(channel, note, velocity)  \
-    {(MIDI_CMD_NOTE_ON  << 4) | (channel), note, velocity}
+    MIDI_CMD_3B(MIDI_CMD_NOTE_ON, channel, note, velocity)
+
 #define MIDI_NOTE_OFF(channel, note, velocity) \
-    {(MIDI_CMD_NOTE_OFF << 4) | (channel), note, velocity}
+    MIDI_CMD_3B(MIDI_CMD_NOTE_OFF, channel, note, velocity)
+
+#define MIDI_CONTROL_CHANGE(channel, cc, value) \
+    MIDI_CMD_3B(MIDI_CMD_CONTROL_CHANGE, channel, cc, value)
 
 static inline size_t midi_datasize(uint8_t evt_type)
 {

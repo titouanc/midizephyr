@@ -244,8 +244,43 @@ static int usb_midi_receive_from_host()
     }
 }
 
+static void usb_midi_send_to_host_worker()
+{
+    int r;
+    while (1){
+        r = k_sem_take(&data_to_host_ready_sem, K_FOREVER);
+        if (r == 0){
+            LOG_DBG("USB-MIDI: sending to host");
+            usb_midi_send_to_host();
+        }
+    }
+}
+
+static void usb_midi_receive_from_host_worker()
+{
+    while (1){
+        LOG_DBG("USB-MIDI: receiving from host");
+        usb_midi_receive_from_host();
+    }
+}
+
+#define USB_MIDI_WORKER_STACK_SIZE 256
+#define USB_MIDI_WORKER_PRIORITY 5
+
+K_THREAD_DEFINE(usb_midi_tx_thread, USB_MIDI_WORKER_STACK_SIZE,
+                usb_midi_send_to_host_worker, NULL, NULL, NULL,
+                USB_MIDI_WORKER_PRIORITY, 0, 0);
+
+K_THREAD_DEFINE(usb_midi_rx_thread, USB_MIDI_WORKER_STACK_SIZE,
+                usb_midi_receive_from_host_worker, NULL, NULL, NULL,
+                USB_MIDI_WORKER_PRIORITY, 0, 0);
+
 int usb_midi_write(uint8_t cable_number, const uint8_t midi_pkt[3])
 {
+    if (! usb_midi_is_configured()){
+        return -EAGAIN;
+    }
+
     int r;
     uint8_t *buf;
 
@@ -307,34 +342,3 @@ int usb_midi_read(uint8_t *cable_number, uint8_t midi_pkt[3])
     k_sem_give(&usb_midi_from_host_sem);
     return r;
 }
-
-static void usb_midi_send_to_host_worker()
-{
-    int r;
-    while (1){
-        r = k_sem_take(&data_to_host_ready_sem, K_FOREVER);
-        if (r == 0){
-            LOG_DBG("USB-MIDI: sending to host");
-            usb_midi_send_to_host();
-        }
-    }
-}
-
-static void usb_midi_receive_from_host_worker()
-{
-    while (1){
-        LOG_DBG("USB-MIDI: receiving from host");
-        usb_midi_receive_from_host();
-    }
-}
-
-#define USB_MIDI_WORKER_STACK_SIZE 256
-#define USB_MIDI_WORKER_PRIORITY 5
-
-K_THREAD_DEFINE(usb_midi_tx_thread, USB_MIDI_WORKER_STACK_SIZE,
-                usb_midi_send_to_host_worker, NULL, NULL, NULL,
-                USB_MIDI_WORKER_PRIORITY, 0, 0);
-
-K_THREAD_DEFINE(usb_midi_rx_thread, USB_MIDI_WORKER_STACK_SIZE,
-                usb_midi_receive_from_host_worker, NULL, NULL, NULL,
-                USB_MIDI_WORKER_PRIORITY, 0, 0);
