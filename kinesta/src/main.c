@@ -1,8 +1,10 @@
 #include <zephyr.h>
 #include <device.h>
 #include <devicetree.h>
+#include <usb/usb_device.h>
 
 #include "kinesta_functional_block.h"
+#include "usb_midi.h"
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(app);
@@ -20,6 +22,14 @@ kinesta_functional_block kfbs[] = {
 void main(void)
 {
     int i;
+
+    if (usb_enable(NULL) == 0){
+        LOG_INF("USB enabled");
+    } else {
+        LOG_ERR("Failed to enable USB");
+        return;
+    }
+
     for (i=0; i<N_KFBS; i++){
         if (kfb_init(&kfbs[i])){
             LOG_ERR("Unable to initialize functional block %d", i);
