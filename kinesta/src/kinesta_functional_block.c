@@ -104,8 +104,8 @@ static int kfb_update_pad(kinesta_functional_block *self)
         // Otherwise: light cyan if USB is configured
         color = COLOR_RGB(0, COLOR_CHAN_MAX / 64, COLOR_CHAN_MAX / 64);
     } else {
-        // Otherwise: light red if USB not configured
-        color = COLOR_RGB(COLOR_CHAN_MAX / 64, 0, 0);
+        // Otherwise: light magenta if USB not configured
+        color = COLOR_RGB(COLOR_CHAN_MAX / 64, 0, COLOR_CHAN_MAX / 64);
     }
     touchpad_set_color(&self->pad, color);
     return 0;
@@ -113,10 +113,34 @@ static int kfb_update_pad(kinesta_functional_block *self)
 
 static int kfb_update_encoder(kinesta_functional_block *self)
 {
-    int r = encoder_get_value(&self->rgb_encoder, &self->encoder_value);
+    uint8_t evt;
+    int r = encoder_get_event(&self->rgb_encoder, &evt);
     if (r){
         return r;
     }
+
+    if (evt & ENCODER_EVT_PRESS){
+        // Click on the encoder: reset value
+        self->encoder_value = 0;
+        r = encoder_set_value(&self->rgb_encoder, 0);
+        if (r){
+            return r;
+        }
+    } else if (evt & ENCODER_EVT_DOUBLE_CLICK){
+        // Double-click on the encoder: set to max
+        self->encoder_value = 1;
+        r = encoder_set_value(&self->rgb_encoder, 1);
+        if (r){
+            return r;
+        }
+    } else {
+        // Otherwise get actual value
+        r = encoder_get_value(&self->rgb_encoder, &self->encoder_value);
+        if (r){
+            return r;
+        }
+    }
+
     uint8_t encoder_midi_cc_value = 127 * self->encoder_value;
     if (encoder_midi_cc_value != self->encoder_midi_cc_value){
         const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, 2, encoder_midi_cc_value);

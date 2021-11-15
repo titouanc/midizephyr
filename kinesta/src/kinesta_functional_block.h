@@ -9,11 +9,13 @@ typedef struct {
     const touchpad pad;
     const encoder rgb_encoder;
 
+    // Sensor input values
     double filtered_distance_cm;
     float encoder_value;
     bool is_in_tracking_zone;
     bool is_pad_touched;
 
+    // MIDI-CC values
     uint8_t distance_midi_cc_value;
     uint8_t encoder_midi_cc_value;
 } kinesta_functional_block;

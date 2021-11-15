@@ -9,29 +9,37 @@ LOG_MODULE_REGISTER(rgb_encoder);
 
 #define COLOR_CHAN_RSHIFT (COLOR_CHAN_BITS - 8)
 
-#define REG_GCONF  0x00
-#define REG_CVAL0  0x08
-#define REG_CVAL1  0x09
-#define REG_CVAL2  0x0A
-#define REG_CVAL3  0x0B
-#define REG_CMAX0  0x0C
-#define REG_CMAX1  0x0D
-#define REG_CMAX2  0x0E
-#define REG_CMAX3  0x0F
-#define REG_CMIN0  0x10
-#define REG_CMIN1  0x11
-#define REG_CMIN2  0x12
-#define REG_CMIN3  0x13
-#define REG_ISTEP0 0x14
-#define REG_ISTEP1 0x15
-#define REG_ISTEP2 0x16
-#define REG_ISTEP3 0x17
-#define REG_RLED   0x18
-#define REG_IDCODE 0x70
+#define REG_GCONF    0x00
+#define REG_INTCONF  0x04
+#define REG_ESTATUS  0x05
+#define REG_CVAL0    0x08
+#define REG_CVAL1    0x09
+#define REG_CVAL2    0x0A
+#define REG_CVAL3    0x0B
+#define REG_CMAX0    0x0C
+#define REG_CMAX1    0x0D
+#define REG_CMAX2    0x0E
+#define REG_CMAX3    0x0F
+#define REG_CMIN0    0x10
+#define REG_CMIN1    0x11
+#define REG_CMIN2    0x12
+#define REG_CMIN3    0x13
+#define REG_ISTEP0   0x14
+#define REG_ISTEP1   0x15
+#define REG_ISTEP2   0x16
+#define REG_ISTEP3   0x17
+#define REG_RLED     0x18
+#define REG_DPPERIOD 0x1F
+#define REG_IDCODE   0x70
 
 #define BIT_GCONF_DTYPE (1 << 0)
 #define BIT_GCONF_ETYPE (1 << 5)
 #define BIT_GCONF_RESET (1 << 7)
+
+/* Same bits defined in ESTATUS and INTCONF */
+#define BIT_ESTATUS_PUSHR (1 << 0)
+#define BIT_ESTATUS_PUSHP (1 << 1)
+#define BIT_ESTATUS_PUSHD (1 << 2)
 
 static inline int encoder_i2c_read(const encoder *enc, uint8_t reg, uint8_t *data, size_t size)
 {
@@ -56,6 +64,11 @@ static inline int encoder_i2c_write(const encoder *enc, uint8_t reg, const uint8
 static inline int encoder_i2c_write_byte(const encoder *enc, uint8_t reg, uint8_t data)
 {
     return encoder_i2c_write(enc, reg, &data, 1);
+}
+
+static inline int encoder_i2c_read_byte(const encoder *enc, uint8_t reg, uint8_t *data)
+{
+    return encoder_i2c_read(enc, reg, data, 1);
 }
 
 static inline int encoder_i2c_write_float(const encoder *enc, uint8_t reg, float data)
@@ -118,6 +131,16 @@ int encoder_init(const encoder *enc)
         return ret;
     }
 
+    // 5. Configure events (click and double-click)
+    ret = encoder_i2c_write_byte(enc, REG_INTCONF, BIT_ESTATUS_PUSHP | BIT_ESTATUS_PUSHR | BIT_ESTATUS_PUSHD);
+    if (ret){
+        return ret;
+    }
+    ret = encoder_i2c_write_byte(enc, REG_DPPERIOD, 25); // 250ms
+    if (ret){
+        return ret;
+    }
+
     return 0;
 }
 
@@ -134,4 +157,31 @@ int encoder_set_color(const encoder *enc, color_t color)
 int encoder_get_value(const encoder *enc, float *value)
 {
     return encoder_i2c_read_float(enc, REG_CVAL0, value);
+}
+
+int encoder_set_value(const encoder *enc, float value)
+{
+    return encoder_i2c_write_float(enc, REG_CVAL0, value);
+}
+
+int encoder_get_event(const encoder *enc, int *evt)
+{
+    int evt_value = 0;
+    uint8_t estatus;
+    int ret = encoder_i2c_read_byte(enc, REG_ESTATUS, &estatus);
+    if (ret){
+        return ret;
+    }
+
+    if (estatus & BIT_ESTATUS_PUSHD){
+        evt_value |= ENCODER_EVT_DOUBLE_CLICK;
+    }
+    if (estatus & BIT_ESTATUS_PUSHR){
+        evt_value |= ENCODER_EVT_RELEASE;
+    }
+    if (estatus & BIT_ESTATUS_PUSHP){
+        evt_value |= ENCODER_EVT_PRESS;
+    }
+    *evt = evt_value;
+    return 0;
 }
