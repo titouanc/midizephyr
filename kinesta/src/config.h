@@ -9,7 +9,7 @@
 
 /* Alpha coefficient for the exponential moving average used to filter
  * the distance measured by the sensor, as in:
- * DISTANCE[t] = ALPHA*MEASURED_DISANTE + (1-ALPHA)*DISTANCE[t-1]
+ * DISTANCE[t] = ALPHA*MEASURED_DISTANCE + (1-ALPHA)*DISTANCE[t-1]
  */
 #define DISTANCE_SENSOR_FILTERING_ALPHA 0.25
 
