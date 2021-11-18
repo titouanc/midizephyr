@@ -14,10 +14,16 @@ typedef struct {
     float encoder_value;
     bool is_in_tracking_zone;
     bool is_pad_touched;
+    bool was_pad_touched;
 
     // MIDI-CC values
     uint8_t distance_midi_cc_value;
     uint8_t encoder_midi_cc_value;
+
+    // Software functions
+    bool is_frozen;
+    int64_t last_pad_blink;
+    bool is_blink_on;
 } kinesta_functional_block;
 
 int kfb_init(kinesta_functional_block *self);

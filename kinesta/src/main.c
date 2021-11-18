@@ -41,7 +41,7 @@ void main(void)
         for (i=0; i<N_KFBS; i++){
             if (kfb_update(&kfbs[i])){
                 LOG_ERR("Unable to update functional block %d", i);
-                return;
+                // return;
             }
         }
     }

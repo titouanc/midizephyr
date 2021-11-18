@@ -77,7 +77,7 @@ static int kfb_update_distance(kinesta_functional_block *self)
 
     double t = kfb_get_distance_t(self);
     uint8_t distance_midi_cc_value = (t < 0) ? 0 : (127 * t);
-    if (distance_midi_cc_value != self->distance_midi_cc_value){
+    if (distance_midi_cc_value != self->distance_midi_cc_value && ! self->is_frozen){
         const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, 1, distance_midi_cc_value);
         usb_midi_write(USB_MIDI_SENSORS_JACK_ID, pkt);
         self->distance_midi_cc_value = distance_midi_cc_value;
@@ -87,6 +87,8 @@ static int kfb_update_distance(kinesta_functional_block *self)
 
 static int kfb_update_pad(kinesta_functional_block *self)
 {
+    int64_t now = k_uptime_get();
+    self->was_pad_touched = self->is_pad_touched;
     self->is_pad_touched = gpio_pin_get_dt(&self->pad.out) > 0;
 
     // Update touchpad color
@@ -94,6 +96,22 @@ static int kfb_update_pad(kinesta_functional_block *self)
     if (self->is_pad_touched){
         // Pad touched: white
         color = COLOR_WHITE;
+        if (! self->was_pad_touched){
+            self->is_frozen = ! self->is_frozen;
+            self->last_pad_blink = now;
+        }
+    } else if (self->is_frozen) {
+        if (now - self->last_pad_blink > 150){
+            self->is_blink_on = ! self->is_blink_on;
+            self->last_pad_blink = now;
+        }
+        if (self->is_blink_on){
+            float t = self->distance_midi_cc_value;
+            t /= 127;
+            color = color_map(COLOR_GREEN, COLOR_RED, t);
+        } else {
+            color = COLOR_RGB(0, 0, 0);
+        }
     } else if (self->is_in_tracking_zone){
         // In tracking zone: colormap green to red
         color = color_map(COLOR_GREEN, COLOR_RED, kfb_get_distance_t(self));
