@@ -136,10 +136,12 @@ int encoder_init(const encoder *enc)
     if (ret){
         return ret;
     }
+    /*
     ret = encoder_i2c_write_byte(enc, REG_DPPERIOD, 25); // 250ms
     if (ret){
         return ret;
     }
+    */
 
     return 0;
 }
