@@ -252,12 +252,15 @@ static void usb_midi_send_to_host_worker()
 static void usb_midi_receive_from_host_worker()
 {
     while (1){
+        while (! usb_midi_is_configured()){
+            k_yield();
+        }
         LOG_DBG("USB-MIDI: receiving from host");
         usb_midi_receive_from_host();
     }
 }
 
-#define USB_MIDI_WORKER_STACK_SIZE 256
+#define USB_MIDI_WORKER_STACK_SIZE 1024
 #define USB_MIDI_WORKER_PRIORITY 5
 
 K_THREAD_DEFINE(usb_midi_tx_thread, USB_MIDI_WORKER_STACK_SIZE,

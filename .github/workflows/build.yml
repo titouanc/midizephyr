@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [midizephyr, kinesta]
+        target: [midizephyr, kinesta, volcadrum]
 
     steps:
     - name: Install system dependencies
