@@ -1,10 +1,50 @@
+&timers3 {
+    status = "okay";
+    st,prescaler = <10000>;
+
+    pwm3: pwm {
+        status = "okay";
+    };
+};
+
+&timers4 {
+    status = "okay";
+    st,prescaler = <10000>;
+
+    pwm4: pwm {
+        status = "okay";
+    };
+};
+
+&pwm1 {
+    pinctrl-0 = <
+        &tim1_ch1_pe9
+        &tim1_ch2_pe11
+        &tim1_ch3_pe13
+    >;
+    pinctrl-names = "default";
+};
+
+&pwm3 {
+    pinctrl-0 = <&tim3_ch1_pa6>;
+    pinctrl-names = "default";
+};
+
+&pwm4 {
+    pinctrl-0 = <
+        &tim4_ch4_pd15
+        &tim4_ch3_pd14
+    >;
+    pinctrl-names = "default";
+};
+
 / {
     pwmleds {
         compatible = "pwm-leds";
 
         pad1_pwm_r: pad1_pwm_r_led {
-            // D6
-            pwms = <&pwm1 1 0 PWM_POLARITY_NORMAL>;
+            // D5
+            pwms = <&pwm1 2 0 PWM_POLARITY_NORMAL>;
             label = "PAD1_PWM_R";
         };
 
@@ -15,8 +55,26 @@
         };
 
         pad1_pwm_b: pad1_pwm_b_led {
-            // D5
-            pwms = <&pwm1 2 0 PWM_POLARITY_NORMAL>;
+            // D6
+            pwms = <&pwm1 1 0 PWM_POLARITY_NORMAL>;
+            label = "PAD1_PWM_B";
+        };
+
+        pad2_pwm_r: pad2_pwm_r_led {
+            // D12
+            pwms = <&pwm3 1 0 PWM_POLARITY_NORMAL>;
+            label = "PAD2_PWM_R";
+        };
+
+        pad2_pwm_g: pad2_pwm_g_led {
+            // D10
+            pwms = <&pwm4 3 0 PWM_POLARITY_NORMAL>;
+            label = "PAD2_PWM_G";
+        };
+
+        pad2_pwm_b: pad2_pwm_b_led {
+            // D9
+            pwms = <&pwm4 4 0 PWM_POLARITY_NORMAL>;
             label = "PAD1_PWM_B";
         };
     };
@@ -27,21 +85,25 @@
             label = "PAD1_OUT";
             gpios = <&arduino_header 10 0>;
         };
+
+        pad2_out: pad2_out_led {
+            // D11
+            label = "PAD2_OUT";
+            gpios = <&arduino_header 17 0>;
+        };
     };
 };
 
-&pwm1 {
-    pinctrl-0 = <
-        &tim1_ch1_pe9
-        &tim1_ch2_pe11
-        &tim1_ch3_pe13
-    >;
-};
-
 &arduino_i2c {
-    encoder1: encoder@70 {
+    encoder1: encoder@72 {
         compatible = "duppa,i2cencoderv21";
         label = "ENCODER1";
-        reg = <0x70>;
+        reg = <0x72>;
+    };
+
+    encoder2: encoder@73 {
+        compatible = "duppa,i2cencoderv21";
+        label = "ENCODER2";
+        reg = <0x73>;
     };
 };
