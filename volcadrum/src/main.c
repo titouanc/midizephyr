@@ -41,15 +41,15 @@ void main(void)
                 continue;
             }
 
-            LOG_DBG("%02hhX %02hhX %02hhX", midi_pkt[0], midi_pkt[1], midi_pkt[2]);
+            printf("[%hhd] %02hhX %02hhX %02hhX\n", cable_id, midi_pkt[0], midi_pkt[1], midi_pkt[2]);
 
             uint8_t cmd = midi_pkt[0] >> 4;
-            if (cmd != MIDI_CMD_NOTE_ON && cmd != MIDI_CMD_NOTE_OFF){
-                continue;
+            if (cmd == MIDI_CMD_NOTE_ON || cmd == MIDI_CMD_NOTE_OFF){
+                // The volca drum has 1 instrument per channel, so we convert the
+                // note to a channel number
+                uint8_t note = midi_pkt[1] & 0x0f;
+                midi_pkt[0] = (cmd << 4) | note;
             }
-
-            uint8_t note = midi_pkt[1] & 0x0f;
-            midi_pkt[0] = (cmd << 4) | note;
 
             for (size_t i=0; i<3; i++){
                 uart_poll_out(midi_uart, midi_pkt[i]);

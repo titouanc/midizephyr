@@ -79,7 +79,7 @@ jobs:
 
     strategy:
       matrix:
-        target: [midizephyr, kinesta]
+        target: [midizephyr, kinesta, volcadrum]
     
     steps:
     - id: get_release
