@@ -33,7 +33,7 @@ int kfb_init(kinesta_functional_block *self)
     if (r){
         return r;
     }
-    
+ 
     r = touchpad_init(&self->pad);
     if (r){
         return r;

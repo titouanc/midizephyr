@@ -40,6 +40,8 @@ LOG_MODULE_REGISTER(rgb_encoder);
 #define BIT_ESTATUS_PUSHR (1 << 0)
 #define BIT_ESTATUS_PUSHP (1 << 1)
 #define BIT_ESTATUS_PUSHD (1 << 2)
+#define BIT_ESTATUS_IRINC (1 << 3)
+#define BIT_ESTATUS_IRDEC (1 << 4)
 
 static inline int encoder_i2c_read(const encoder *enc, uint8_t reg, uint8_t *data, size_t size)
 {
@@ -132,7 +134,7 @@ int encoder_init(const encoder *enc)
     }
 
     // 5. Configure events (click and double-click)
-    ret = encoder_i2c_write_byte(enc, REG_INTCONF, BIT_ESTATUS_PUSHP | BIT_ESTATUS_PUSHR | BIT_ESTATUS_PUSHD);
+    ret = encoder_i2c_write_byte(enc, REG_INTCONF, BIT_ESTATUS_PUSHP | BIT_ESTATUS_PUSHR | BIT_ESTATUS_PUSHD | BIT_ESTATUS_IRINC | BIT_ESTATUS_IRDEC);
     if (ret){
         return ret;
     }

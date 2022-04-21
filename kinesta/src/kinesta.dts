@@ -75,21 +75,66 @@
         pad2_pwm_b: pad2_pwm_b_led {
             // D9
             pwms = <&pwm4 4 0 PWM_POLARITY_NORMAL>;
-            label = "PAD1_PWM_B";
+            label = "PAD2_PWM_B";
+        };
+    };
+
+    leds {
+        compatible = "gpio-leds";
+        
+        pad3_r: pad3_r_led {
+            gpios = <&gpioe 7 0>;
+            label = "PAD3_R";
+        };
+
+        pad3_g: pad3_g_led {
+            gpios = <&gpioe 15 0>;
+            label = "PAD3_G";
+        };
+
+        pad3_b: pad3_b_led {
+            gpios = <&gpioe 8 0>;
+            label = "PAD3_B";
+        };
+
+        pad4_r: pad4_r_led {
+            // D2
+            gpios = <&gpiof 15 0>;
+            label = "PAD4_R";
+        };
+
+        pad4_g: pad4_g_led {
+            // D7
+            gpios = <&gpiof 13 0>;
+            label = "PAD4_G";
+        };
+
+        pad4_b: pad4_b_led {
+            // D4
+            gpios = <&gpiof 14 0>;
+            label = "PAD4_B";
         };
     };
 
     gpio_keys {
         pad1_out: pad1_out_led {
-            // D4
             label = "PAD1_OUT";
-            gpios = <&arduino_header 10 0>;
+            gpios = <&gpiod 11 0>;
         };
 
         pad2_out: pad2_out_led {
-            // D11
             label = "PAD2_OUT";
-            gpios = <&arduino_header 17 0>;
+            gpios = <&gpioe 2 0>;
+        };
+
+        pad3_out: pad3_out_led {
+            label = "PAD3_OUT";
+            gpios = <&gpiob 2 0>;
+        };
+
+        pad4_out: pad4_out_led {
+            label = "PAD4_OUT";
+            gpios = <&gpiof 4 0>;
         };
     };
 };

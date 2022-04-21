@@ -309,6 +309,8 @@ int usb_midi_read(uint8_t *cable_number, uint8_t midi_pkt[3])
     int r;
     uint8_t *buf;
 
+    LOG_DBG("midi read !");
+
     r = k_sem_take(&usb_midi_from_host_sem, K_FOREVER);
     if (r){
         return r;

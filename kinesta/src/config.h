@@ -11,7 +11,7 @@
  * the distance measured by the sensor, as in:
  * DISTANCE[t] = ALPHA*MEASURED_DISTANCE + (1-ALPHA)*DISTANCE[t-1]
  */
-#define DISTANCE_SENSOR_FILTERING_ALPHA 0.25
+#define DISTANCE_SENSOR_FILTERING_ALPHA 1
 
 /* Number of distinct steps in the encoder */
 #define ENCODER_N_STEPS 32

@@ -6,6 +6,7 @@
 #include "color.h"
 
 typedef struct {
+    bool is_pwm;
     struct gpio_dt_spec out;
     struct gpio_dt_spec r;
     struct gpio_dt_spec g;
@@ -18,11 +19,20 @@ typedef struct {
     .dt_flags=DT_PWMS_FLAGS(node),           \
 }
 
-#define TOUCHPAD_DT_SPEC(name) {                               \
+#define TOUCHPAD_PWM_DT_SPEC(name) {                               \
+    .is_pwm = true,                                        \
     .out = GPIO_DT_SPEC_GET(DT_NODELABEL(name##_out), gpios), \
     .r = PWM_DT_SPEC_GET(DT_NODELABEL(name##_pwm_r)),         \
     .g = PWM_DT_SPEC_GET(DT_NODELABEL(name##_pwm_g)),         \
     .b = PWM_DT_SPEC_GET(DT_NODELABEL(name##_pwm_b)),         \
+}
+
+#define TOUCHPAD_GPIO_DT_SPEC(name) {                               \
+    .is_pwm = false,                                        \
+    .out = GPIO_DT_SPEC_GET(DT_NODELABEL(name##_out), gpios), \
+    .r = GPIO_DT_SPEC_GET(DT_NODELABEL(name##_r), gpios),         \
+    .g = GPIO_DT_SPEC_GET(DT_NODELABEL(name##_g), gpios),         \
+    .b = GPIO_DT_SPEC_GET(DT_NODELABEL(name##_b), gpios),         \
 }
 
 int touchpad_init(const touchpad *pad);

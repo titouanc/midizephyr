@@ -7,6 +7,7 @@
 typedef struct {
     const struct device *distance_sensor;
     const touchpad pad;
+    const touchpad pad2;
     const encoder rgb_encoder;
 
     // Sensor input values

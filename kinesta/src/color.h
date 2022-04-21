@@ -6,6 +6,7 @@
 typedef uint32_t color_t;
 
 #define COLOR_CHAN_BITS 10
+#define COLOR_CHAN_HIGHEST_BIT_MASK (1 << (COLOR_CHAN_BITS - 1))
 #define COLOR_CHAN_MAX ((1 << COLOR_CHAN_BITS) - 1)
 
 /* Constructor */
