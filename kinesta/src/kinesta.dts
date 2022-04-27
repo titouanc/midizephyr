@@ -136,6 +136,12 @@
             label = "PAD4_OUT";
             gpios = <&gpiof 4 0>;
         };
+
+        encoders_irq: encoders_irq_line {
+            // D0
+            label = "ENCODERS_IRQ";
+            gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
+        };
     };
 };
 
@@ -151,4 +157,8 @@
         label = "ENCODER2";
         reg = <0x73>;
     };
+};
+
+&usart6 {
+    status = "disabled";
 };

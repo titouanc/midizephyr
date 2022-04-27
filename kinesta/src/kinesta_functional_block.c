@@ -27,21 +27,6 @@ static int kfb_measure_distance_cm(kinesta_functional_block *self, double *res)
     return 0;
 }
 
-int kfb_init(kinesta_functional_block *self)
-{
-    int r = kfb_measure_distance_cm(self, &self->filtered_distance_cm);
-    if (r){
-        return r;
-    }
- 
-    r = touchpad_init(&self->pad);
-    if (r){
-        return r;
-    }
-
-    return encoder_init(&self->rgb_encoder);
-}
-
 /* Distance remapped on 0..1
  *   Below 0 is above the tracking zone
  *   0 is the highest position in the tracking zone
@@ -129,9 +114,34 @@ static int kfb_update_pad(kinesta_functional_block *self)
     return 0;
 }
 
-static int kfb_update_encoder(kinesta_functional_block *self)
+int kfb_init(kinesta_functional_block *self)
 {
-    uint8_t evt;
+    int r = kfb_measure_distance_cm(self, &self->filtered_distance_cm);
+    if (r){
+        return r;
+    }
+ 
+    r = touchpad_init(&self->pad);
+    if (r){
+        return r;
+    }
+
+    r = kfb_update_pad(self);
+    if (r){
+        return r;
+    }
+
+    r = encoder_init(&self->rgb_encoder);
+    if (r){
+        return r;
+    }
+
+    return kfb_update_encoder(self);
+}
+
+int kfb_update_encoder(kinesta_functional_block *self)
+{
+    int evt;
     int r = encoder_get_event(&self->rgb_encoder, &evt);
     if (r){
         return r;
@@ -176,10 +186,5 @@ int kfb_update(kinesta_functional_block *self)
         return r;
     }
 
-    r = kfb_update_pad(self);
-    if (r){
-        return r;
-    }
-
-    return kfb_update_encoder(self);    
+    return kfb_update_pad(self);
 }

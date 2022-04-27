@@ -31,4 +31,6 @@ int kfb_init(kinesta_functional_block *self);
 
 int kfb_update(kinesta_functional_block *self);
 
+int kfb_update_encoder(kinesta_functional_block *self);
+
 #endif

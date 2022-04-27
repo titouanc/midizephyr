@@ -26,9 +26,27 @@ kinesta_functional_block kfbs[] = {
     },
 };
 
+struct gpio_callback encoders_irq_cb;
+struct gpio_dt_spec encoders_irq = GPIO_DT_SPEC_GET(DT_NODELABEL(encoders_irq), gpios);
+
+static void refresh_encoders()
+{
+    int i;
+    for (i=0; i<N_KFBS; i++){
+        kfb_update_encoder(&kfbs[i]);
+    }
+}
+
+K_WORK_DEFINE(encoders_irq_work, refresh_encoders);
+
+static void on_encoder_irq(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
+{
+    k_work_submit(&encoders_irq_work);
+}
+
 void main(void)
 {
-    int i, j;
+    int i;
 
     // if (usb_enable(NULL) == 0){
     //     LOG_INF("USB enabled");
@@ -40,9 +58,14 @@ void main(void)
     for (i=0; i<N_KFBS; i++){
         if (kfb_init(&kfbs[i])){
             LOG_ERR("Unable to initialize functional block %d", i);
-            // return;
+            return;
         }
     }
+
+    gpio_pin_configure_dt(&encoders_irq, GPIO_INPUT);
+    gpio_pin_interrupt_configure_dt(&encoders_irq, GPIO_INT_EDGE_TO_ACTIVE);
+    gpio_init_callback(&encoders_irq_cb, on_encoder_irq, BIT(encoders_irq.pin));
+    gpio_add_callback(encoders_irq.port, &encoders_irq_cb);
 
     LOG_INF("Starting mainloop !");
 
@@ -50,7 +73,7 @@ void main(void)
         for (i=0; i<N_KFBS; i++){
             if (kfb_update(&kfbs[i])){
                 LOG_ERR("Unable to update functional block %d", i);
-                // return;
+                return;
             }
         }
         k_sleep(K_MSEC(100));
