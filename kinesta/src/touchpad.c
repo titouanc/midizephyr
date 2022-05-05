@@ -8,21 +8,21 @@ static int touchpad_init_pwm(const touchpad *pad)
 {
     int r;
 
-    LOG_DBG("pad->r: %s %d\n", pad->r.port->name, pad->r.pin);
+    LOG_DBG("pad->r: %s %d", pad->r.port->name, pad->r.pin);
     if (!device_is_ready(pad->r.port)) {
-        LOG_ERR("PWM device %s is not ready\n", pad->r.port->name);
+        LOG_ERR("PWM device %s is not ready", pad->r.port->name);
         return -EAGAIN;
     }
 
-    LOG_DBG("pad->g: %s %d\n", pad->g.port->name, pad->g.pin);
+    LOG_DBG("pad->g: %s %d", pad->g.port->name, pad->g.pin);
     if (!device_is_ready(pad->g.port)) {
-        LOG_ERR("PWM device %s is not ready\n", pad->g.port->name);
+        LOG_ERR("PWM device %s is not ready", pad->g.port->name);
         return -EAGAIN;
     }
 
-    LOG_DBG("pad->b: %s %d\n", pad->b.port->name, pad->b.pin);
+    LOG_DBG("pad->b: %s %d", pad->b.port->name, pad->b.pin);
     if (!device_is_ready(pad->b.port)) {
-        LOG_ERR("PWM device %s is not ready\n", pad->b.port->name);
+        LOG_ERR("PWM device %s is not ready", pad->b.port->name);
         return -EAGAIN;
     }
 
@@ -33,19 +33,19 @@ static int touchpad_init_gpio(const touchpad *pad)
 {
     int r;
 
-    LOG_DBG("pad->r: %s %d\n", pad->r.port->name, pad->r.pin);
+    LOG_DBG("pad->r: %s %d", pad->r.port->name, pad->r.pin);
     if (r = gpio_pin_configure_dt(&pad->r, GPIO_OUTPUT | pad->out.dt_flags)){
         LOG_ERR("Unable to configure pad->r");
         return r;
     }
 
-    LOG_DBG("pad->g: %s %d\n", pad->g.port->name, pad->g.pin);
+    LOG_DBG("pad->g: %s %d", pad->g.port->name, pad->g.pin);
     if (r = gpio_pin_configure_dt(&pad->g, GPIO_OUTPUT | pad->out.dt_flags)){
         LOG_ERR("Unable to configure pad->g");
         return r;
     }
 
-    LOG_DBG("pad->b: %s %d\n", pad->b.port->name, pad->b.pin);
+    LOG_DBG("pad->b: %s %d", pad->b.port->name, pad->b.pin);
     if (r = gpio_pin_configure_dt(&pad->b, GPIO_OUTPUT | pad->out.dt_flags)){
         LOG_ERR("Unable to configure pad->b");
         return r;
@@ -56,7 +56,7 @@ static int touchpad_init_gpio(const touchpad *pad)
 
 int touchpad_init(const touchpad *pad)
 {
-    LOG_DBG("pad->out: %s %d\n", pad->out.port->name, pad->out.pin);
+    LOG_DBG("pad->out: %s %d", pad->out.port->name, pad->out.pin);
     
     int r = gpio_pin_configure_dt(&pad->out, GPIO_INPUT | pad->out.dt_flags);
     if (r){
