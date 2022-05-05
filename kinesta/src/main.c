@@ -13,13 +13,13 @@ LOG_MODULE_REGISTER(app);
 
 kinesta_functional_block kfbs[] = {
     {
-        .distance_sensor = DEVICE_DT_GET(DT_NODELABEL(vl53l0x_l)),
+        .distance_sensor = DEVICE_DT_GET(DT_NODELABEL(vl53l0x_r)),
         .pad = TOUCHPAD_PWM_DT_SPEC(pad1),
         .pad2 = TOUCHPAD_GPIO_DT_SPEC(pad3),
         .rgb_encoder = ENCODER_DT_SPEC(encoder1),
     },
     {
-        .distance_sensor = DEVICE_DT_GET(DT_NODELABEL(vl53l0x_r)),
+        .distance_sensor = DEVICE_DT_GET(DT_NODELABEL(vl53l0x_l)),
         .pad = TOUCHPAD_PWM_DT_SPEC(pad2),
         .pad2 = TOUCHPAD_GPIO_DT_SPEC(pad4),
         .rgb_encoder = ENCODER_DT_SPEC(encoder2),
