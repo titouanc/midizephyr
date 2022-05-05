@@ -17,12 +17,14 @@ kinesta_functional_block kfbs[] = {
         .pad = TOUCHPAD_PWM_DT_SPEC(pad1),
         .pad2 = TOUCHPAD_GPIO_DT_SPEC(pad3),
         .rgb_encoder = ENCODER_DT_SPEC(encoder1),
+        .cc_high_byte = 0x10,
     },
     {
         .distance_sensor = DEVICE_DT_GET(DT_NODELABEL(vl53l0x_l)),
         .pad = TOUCHPAD_PWM_DT_SPEC(pad2),
         .pad2 = TOUCHPAD_GPIO_DT_SPEC(pad4),
         .rgb_encoder = ENCODER_DT_SPEC(encoder2),
+        .cc_high_byte = 0x20,
     },
 };
 

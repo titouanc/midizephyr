@@ -63,7 +63,7 @@ static int kfb_update_distance(kinesta_functional_block *self)
     double t = kfb_get_distance_t(self);
     uint8_t distance_midi_cc_value = (t < 0) ? 0 : (127 * t);
     if (distance_midi_cc_value != self->distance_midi_cc_value && ! self->is_frozen){
-        const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, 1, distance_midi_cc_value);
+        const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, self->cc_high_byte | 1, distance_midi_cc_value);
         usb_midi_write(USB_MIDI_SENSORS_JACK_ID, pkt);
         self->distance_midi_cc_value = distance_midi_cc_value;
     }
@@ -169,7 +169,7 @@ int kfb_update_encoder(kinesta_functional_block *self)
 
     uint8_t encoder_midi_cc_value = 127 * self->encoder_value;
     if (encoder_midi_cc_value != self->encoder_midi_cc_value){
-        const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, 2, encoder_midi_cc_value);
+        const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, self->cc_high_byte | 2, encoder_midi_cc_value);
         usb_midi_write(USB_MIDI_SENSORS_JACK_ID, pkt);
         self->encoder_midi_cc_value = encoder_midi_cc_value;
     }

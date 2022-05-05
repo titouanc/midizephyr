@@ -9,6 +9,7 @@ typedef struct {
     const touchpad pad;
     const touchpad pad2;
     const encoder rgb_encoder;
+    const uint8_t cc_high_byte;
 
     // Sensor input values
     double filtered_distance_cm;
