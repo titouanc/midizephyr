@@ -1,3 +1,10 @@
+&usart2 {
+    status = "okay";
+    pinctrl-0 = <&usart2_tx_pd5 &usart2_rx_pd6>;
+    label = "MIDI_UART";
+}
+
+
 &timers3 {
     status = "okay";
     st,prescaler = <10000>;
