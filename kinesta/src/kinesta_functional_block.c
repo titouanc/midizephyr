@@ -149,15 +149,13 @@ int kfb_update_encoder(kinesta_functional_block *self)
 
     if (evt & ENCODER_EVT_PRESS){
         // Click on the encoder: reset value
-        self->encoder_value = 0;
-        r = encoder_set_value(&self->rgb_encoder, 0);
+        r = encoder_get_value(&self->rgb_encoder, &self->encoder_value);
         if (r){
             return r;
         }
-    } else if (evt & ENCODER_EVT_DOUBLE_CLICK){
-        // Double-click on the encoder: set to max
-        self->encoder_value = 1;
-        r = encoder_set_value(&self->rgb_encoder, 1);
+        // If the actual encoder value is 0: set to 1, otherwise set to 0
+        self->encoder_value = (self->encoder_value == 0) ? 1 : 0;
+        r = encoder_set_value(&self->rgb_encoder, self->encoder_value);
         if (r){
             return r;
         }
