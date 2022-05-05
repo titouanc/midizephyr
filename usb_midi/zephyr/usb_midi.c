@@ -37,19 +37,23 @@ EXT_MIDI_OUT <-*-< EMB_IN_EXT_MIDI_OUT <-*------< MIDI_OUT_ENDPOINT
 #define MIDI_IN_ENDPOINT_ID  0x81
 #define MIDI_OUT_ENDPOINT_ID 0x01
 
-#define EXTERNAL_MIDI_IN_NAME "MIDI IN socket"
-#define EXTERNAL_MIDI_OUT_NAME "MIDI OUT socket"
-#define EMBEDDED_OUT_INTERNAL_MIDI_IN_NAME "Int. MIDI IN (sensors)"
-#define EMBEDDED_OUT_EXTERNAL_MIDI_IN_NAME "Ext. MIDI IN"
-#define EMBEDDED_IN_EXTERNAL_MIDI_OUT_NAME "Ext. MIDI OUT"
+static void usb_midi_send_to_host();
+static void usb_midi_receive_from_host();
 
-static K_SEM_DEFINE(usb_midi_to_host_sem, 1, 1);
+K_SEM_DEFINE(data_to_host_ready, 0, 1);
+K_SEM_DEFINE(data_from_host_ready, 0, 1);
+
+K_WORK_DEFINE(usb_midi_to_host_work, usb_midi_send_to_host);
+K_WORK_DEFINE(usb_midi_from_host_work, usb_midi_receive_from_host);
+
 RING_BUF_ITEM_DECLARE_POW2(usb_midi_to_host_buf, 6);
-
-static K_SEM_DEFINE(usb_midi_from_host_sem, 1, 1);
 RING_BUF_ITEM_DECLARE_POW2(usb_midi_from_host_buf, 6);
 
-static K_SEM_DEFINE(data_to_host_ready_sem, 0, 1);
+K_THREAD_STACK_DEFINE(usb_midi_work_queue_stack, 1024);
+
+static struct k_work_q usb_midi_work_queue;
+
+static bool usb_midi_work_queue_initialized = false;
 
 static struct usb_ep_cfg_data ep_cfg[] = {
     {.ep_cb=usb_transfer_ep_callback, .ep_addr=MIDI_IN_ENDPOINT_ID},
@@ -97,6 +101,22 @@ USBD_CLASS_DESCR_DEFINE(primary, midistreaming) struct usb_midi_if_descriptor mi
         ),
     )
 };
+
+static inline void usb_midi_submit_work(struct k_work *work)
+{
+    if (! usb_midi_work_queue_initialized){
+        k_work_queue_init(&usb_midi_work_queue);
+        k_work_queue_start(
+            &usb_midi_work_queue,
+            usb_midi_work_queue_stack,
+            K_THREAD_STACK_SIZEOF(usb_midi_work_queue_stack),
+            5,
+            NULL
+        );
+        usb_midi_work_queue_initialized = true;
+    }
+    k_work_submit_to_queue(&usb_midi_work_queue, work);
+}
 
 static void midi_interface_configure(struct usb_desc_header *head, uint8_t bInterfaceNumber)
 {
@@ -188,103 +208,56 @@ static void usb_midi_transfer_done(uint8_t ep, int size, void *data)
         } else {
             ring_buf_get_finish(&usb_midi_to_host_buf, 0);
         }
+        usb_midi_submit_work(&usb_midi_to_host_work);
     }
 
     if (ep == MIDI_OUT_ENDPOINT_ID){
         if (size > 0){
             ring_buf_put_finish(&usb_midi_from_host_buf, size);
+            k_sem_give(&data_from_host_ready);
         } else {
             ring_buf_put_finish(&usb_midi_from_host_buf, 0);
         }
-        k_sem_give(&usb_midi_from_host_sem);   
+        usb_midi_submit_work(&usb_midi_from_host_work);
     }
 }
 
-static int usb_midi_send_to_host()
+static void usb_midi_send_to_host()
 {
+    k_sem_take(&data_to_host_ready, K_FOREVER);
+
     uint8_t *queued_data;
     size_t data_ready = ring_buf_get_claim(&usb_midi_to_host_buf, &queued_data, MIDI_BULK_SIZE);
     if (data_ready > 0){
         usb_transfer(MIDI_IN_ENDPOINT_ID, queued_data, data_ready,
                      USB_TRANS_WRITE, usb_midi_transfer_done, NULL);
-        return 0;
     } else {
         LOG_DBG("No pending data to host");
         ring_buf_get_finish(&usb_midi_to_host_buf, 0);
-        return -EAGAIN;
     }
 }
 
-static int usb_midi_receive_from_host()
+static void usb_midi_receive_from_host()
 {
-    int r = k_sem_take(&usb_midi_from_host_sem, K_FOREVER);
-    if (r){
-        LOG_ERR("Unable to acquire read lock");
-        return -EAGAIN;
-    }
-
     uint8_t *rxdata;
     size_t rxsize = ring_buf_put_claim(&usb_midi_from_host_buf, &rxdata, MIDI_BULK_SIZE);
     if (rxsize > 0){
         usb_transfer(MIDI_OUT_ENDPOINT_ID, rxdata, rxsize,
                      USB_TRANS_READ, usb_midi_transfer_done, NULL);
-        return 0;
     } else {
-        LOG_DBG("No space available for data from host");
+        LOG_WRN("No space available for data from host");
         ring_buf_put_finish(&usb_midi_from_host_buf, 0);
-        k_sem_give(&usb_midi_to_host_sem);
-        return -EAGAIN;
     }
 }
-
-static void usb_midi_send_to_host_worker()
-{
-    int r;
-    while (1){
-        r = k_sem_take(&data_to_host_ready_sem, K_FOREVER);
-        if (r == 0){
-            LOG_DBG("USB-MIDI: sending to host");
-            usb_midi_send_to_host();
-        }
-    }
-}
-
-static void usb_midi_receive_from_host_worker()
-{
-    while (1){
-        while (! usb_midi_is_configured()){
-            k_yield();
-        }
-        LOG_DBG("USB-MIDI: receiving from host");
-        usb_midi_receive_from_host();
-    }
-}
-
-#define USB_MIDI_WORKER_STACK_SIZE 1024
-#define USB_MIDI_WORKER_PRIORITY 5
-
-K_THREAD_DEFINE(usb_midi_tx_thread, USB_MIDI_WORKER_STACK_SIZE,
-                usb_midi_send_to_host_worker, NULL, NULL, NULL,
-                USB_MIDI_WORKER_PRIORITY, 0, 0);
-
-K_THREAD_DEFINE(usb_midi_rx_thread, USB_MIDI_WORKER_STACK_SIZE,
-                usb_midi_receive_from_host_worker, NULL, NULL, NULL,
-                USB_MIDI_WORKER_PRIORITY, 0, 0);
 
 int usb_midi_write(uint8_t cable_number, const uint8_t midi_pkt[3])
 {
-    if (! usb_midi_is_configured()){
+   if (! usb_midi_is_configured()){
         return -EAGAIN;
     }
 
-    int r;
+    int r = 0;
     uint8_t *buf;
-
-    r = k_sem_take(&usb_midi_to_host_sem, K_FOREVER);
-    if (r){
-        LOG_ERR("Unable to acquire write lock");
-        return r;
-    }
 
     uint8_t midi_cmd = midi_pkt[0] >> 4;
     size_t requested_size = 1 + midi_datasize(midi_cmd);
@@ -296,11 +269,14 @@ int usb_midi_write(uint8_t cable_number, const uint8_t midi_pkt[3])
     } else {
         buf[0] = (cable_number << 4) | midi_cmd;
         memcpy(&buf[1], midi_pkt, midi_datasize(midi_cmd));
-        k_sem_give(&data_to_host_ready_sem);
     }
     
     ring_buf_put_finish(&usb_midi_to_host_buf, claimed_size);
-    k_sem_give(&usb_midi_to_host_sem);
+    if (claimed_size) {
+        usb_midi_submit_work(&usb_midi_to_host_work);
+    }
+
+    k_sem_give(&data_to_host_ready);
     return r;
 }
 
@@ -309,12 +285,8 @@ int usb_midi_read(uint8_t *cable_number, uint8_t midi_pkt[3])
     int r;
     uint8_t *buf;
 
-    LOG_DBG("midi read !");
-
-    r = k_sem_take(&usb_midi_from_host_sem, K_FOREVER);
-    if (r){
-        return r;
-    }
+    usb_midi_submit_work(&usb_midi_from_host_work);
+    k_sem_take(&data_from_host_ready, K_FOREVER);
 
     size_t requested_size = 4;
     size_t claimed_size = ring_buf_get_claim(&usb_midi_from_host_buf, &buf, requested_size);
@@ -337,6 +309,5 @@ int usb_midi_read(uint8_t *cable_number, uint8_t midi_pkt[3])
     }
 
     ring_buf_get_finish(&usb_midi_from_host_buf, claimed_size);
-    k_sem_give(&usb_midi_from_host_sem);
     return r;
 }
