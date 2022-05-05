@@ -7,11 +7,14 @@
 #include <sys/ring_buffer.h>
 #include <usb/usb_ch9.h>
 #include <usb/usb_device.h>
+#include <drivers/uart.h>
 
 #include "usb_midi.h"
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(usb_midi, CONFIG_USB_MIDI_LOG_LEVEL);
+
+const struct device *midi_din_uart = DEVICE_DT_GET(DT_NODELABEL(midi_din_uart));
 
 /*             
 MIDI sockets   USB-MIDI function                USB function (host)
@@ -252,15 +255,21 @@ static void usb_midi_receive_from_host()
 
 int usb_midi_write(uint8_t cable_number, const uint8_t midi_pkt[3])
 {
-   if (! usb_midi_is_configured()){
-        return -EAGAIN;
-    }
+
 
     int r = 0;
     uint8_t *buf;
 
     uint8_t midi_cmd = midi_pkt[0] >> 4;
     size_t requested_size = 1 + midi_datasize(midi_cmd);
+    for (size_t i=0; i<midi_datasize(midi_cmd); i++){
+        uart_poll_out(midi_din_uart, midi_pkt[i]);
+    }
+
+    if (! usb_midi_is_configured()){
+        return -EAGAIN;
+    }
+
     size_t claimed_size = ring_buf_put_claim(&usb_midi_to_host_buf, &buf, requested_size);
     if (claimed_size < requested_size){
         r = -EAGAIN;
