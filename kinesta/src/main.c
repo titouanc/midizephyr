@@ -48,12 +48,12 @@ void main(void)
 {
     int i;
 
-    // if (usb_enable(NULL) == 0){
-    //     LOG_INF("USB enabled");
-    // } else {
-    //     LOG_ERR("Failed to enable USB");
-    //     return;
-    // }
+    if (usb_enable(NULL) == 0){
+        LOG_INF("USB enabled");
+    } else {
+        LOG_ERR("Failed to enable USB");
+        return;
+    }
 
     for (i=0; i<N_KFBS; i++){
         if (kfb_init(&kfbs[i])){
