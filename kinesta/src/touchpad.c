@@ -94,23 +94,17 @@ static inline int touchpad_set_color_channel(const touchpad *pad, const struct g
 
 int touchpad_set_color(const touchpad *pad, color_t color)
 {
-    if (touchpad_set_color_channel(pad, &pad->r, COLOR_GET_R(color))) {
+    if (touchpad_set_color_channel(pad, &pad->r, color_get_r(color))) {
         LOG_ERR("Unable to set pad->r");
         return -EIO;
-    } else {
-        // LOG_DBG("Set %s/%d to %d", pad->r.port->name, (int) pad->r.pin, COLOR_GET_R(color));
     }
-    if (touchpad_set_color_channel(pad, &pad->g, COLOR_GET_G(color))) {
+    if (touchpad_set_color_channel(pad, &pad->g, color_get_g(color))) {
         LOG_ERR("Unable to set pad->g");
         return -EIO;
-    } else {
-        // LOG_DBG("Set %s/%d to %d", pad->g.port->name, (int) pad->g.pin, COLOR_GET_G(color));
     }
-    if (touchpad_set_color_channel(pad, &pad->b, COLOR_GET_B(color))) {
+    if (touchpad_set_color_channel(pad, &pad->b, color_get_b(color))) {
         LOG_ERR("Unable to set pad->b");
         return -EIO;
-    } else {
-        // LOG_DBG("Set %s/%d to %d", pad->b.port->name, (int) pad->b.pin, COLOR_GET_B(color));
     }
     return 0;
 }

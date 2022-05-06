@@ -150,11 +150,8 @@ int encoder_init(const encoder *enc)
 
 int encoder_set_color(const encoder *enc, color_t color)
 {
-    uint8_t rgb_value[3] = {
-        COLOR_GET_R(color) >> COLOR_CHAN_RSHIFT,
-        COLOR_GET_G(color) >> COLOR_CHAN_RSHIFT,
-        COLOR_GET_B(color) >> COLOR_CHAN_RSHIFT,
-    };
+    uint8_t rgb_value[3];
+    color_get_u8(color, &rgb_value[0], &rgb_value[1], &rgb_value[2]);
     return encoder_i2c_write(enc, REG_RLED, rgb_value, 3);
 }
 

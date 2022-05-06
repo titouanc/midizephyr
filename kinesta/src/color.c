@@ -9,13 +9,22 @@ color_t color_map(color_t c1, color_t c2, float t)
         t = 1;
     }
 
-    int gradient_r = COLOR_GET_R(c2) - COLOR_GET_R(c1);
-    int gradient_g = COLOR_GET_G(c2) - COLOR_GET_G(c1);
-    int gradient_b = COLOR_GET_B(c2) - COLOR_GET_B(c1);
+    int gradient_r = color_get_r(c2) - color_get_r(c1);
+    int gradient_g = color_get_g(c2) - color_get_g(c1);
+    int gradient_b = color_get_b(c2) - color_get_b(c1);
 
-    return COLOR_RGB(
-        (int)(COLOR_GET_R(c1) + t * gradient_r),
-        (int)(COLOR_GET_G(c1) + t * gradient_g),
-        (int)(COLOR_GET_B(c1) + t * gradient_b)
+    return color_rgb(
+        color_get_r(c1) + t * gradient_r,
+        color_get_g(c1) + t * gradient_g,
+        color_get_b(c1) + t * gradient_b
+    );
+}
+
+color_t color_mul(color_t c, float multiplier)
+{
+    return color_rgb(
+        color_get_r(c) * multiplier,
+        color_get_g(c) * multiplier,
+        color_get_b(c) * multiplier
     );
 }

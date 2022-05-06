@@ -96,7 +96,7 @@ static int kfb_update_pad(kinesta_functional_block *self)
             t /= 127;
             color = color_map(COLOR_GREEN, COLOR_RED, t);
         } else {
-            color = COLOR_RGB(0, 0, 0);
+            color = color_rgb(0, 0, 0);
         }
     } else if (self->is_in_tracking_zone){
         // In tracking zone: colormap green to red
@@ -106,10 +106,10 @@ static int kfb_update_pad(kinesta_functional_block *self)
         color = COLOR_BLUE;
     } else if (usb_midi_is_configured()) {
         // Otherwise: light cyan if USB is configured
-        color = COLOR_RGB(0, COLOR_CHAN_MAX / 64, COLOR_CHAN_MAX / 64);
+        color = color_mul(COLOR_CYAN, 0.05);
     } else {
         // Otherwise: light magenta if USB not configured
-        color = COLOR_RGB(COLOR_CHAN_MAX / 64, 0, COLOR_CHAN_MAX / 64);
+        color = color_mul(COLOR_MAGENTA, 0.05);
     }
     touchpad_set_color(&self->pad, color);
     return 0;
