@@ -1,0 +1,45 @@
+# Copyright (c) 2021 Titouan Christophe
+# SPDX-License-Identifier: Apache-2.0
+
+config KINESTA_HW
+    bool "Enable support for Kinesta hardware modules"
+    select I2C
+
+if KINESTA_HW
+
+choice "KINESTA_HW_LOG_LEVEL_CHOICE"
+    prompt "Max compiled-in log level for USB MIDI function"
+    default KINESTA_HW_LOG_LEVEL_INF
+    depends on LOG
+
+config KINESTA_HW_LOG_LEVEL_OFF
+    bool "Off"
+
+config KINESTA_HW_LOG_LEVEL_ERR
+    bool "Error"
+
+config KINESTA_HW_LOG_LEVEL_WRN
+    bool "Warning"
+
+config KINESTA_HW_LOG_LEVEL_INF
+    bool "Info"
+
+config KINESTA_HW_LOG_LEVEL_DBG
+    bool "Debug"
+
+endchoice
+
+config KINESTA_HW_LOG_LEVEL
+    int
+    depends on LOG
+    default 0 if KINESTA_HW_LOG_LEVEL_OFF
+    default 1 if KINESTA_HW_LOG_LEVEL_ERR
+    default 2 if KINESTA_HW_LOG_LEVEL_WRN
+    default 3 if KINESTA_HW_LOG_LEVEL_INF
+    default 4 if KINESTA_HW_LOG_LEVEL_DBG
+
+config KINESTA_HW_ENCODER_STEPS
+    int "Number of steps in the encoder range"
+    default 32
+
+endif

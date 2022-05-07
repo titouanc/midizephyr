@@ -1,0 +1,68 @@
+// MIDI DIN connector
+// Tx on PD5 / Rx on PD6
+midi_din_uart: &usart2 {
+    status = "okay";
+    pinctrl-0 = <&usart2_tx_pd5 &usart2_rx_pd6>;
+    pinctrl-names = "default";
+    current-speed = <31250>;
+};
+
+&pwm1 {
+    pinctrl-0 = <
+        &tim1_ch1_pe9
+        &tim1_ch2_pe11
+        &tim1_ch3_pe13
+    >;
+    pinctrl-names = "default";
+};
+
+&arduino_i2c {
+    encoder1: encoder@71 {
+        compatible = "duppa,i2cencoderv21";
+        label = "ENCODER1";
+        reg = <0x71>;
+        // PG9 (D0)
+        interrupt-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
+    };
+};
+
+// Disable usart6 (to free up D0/D1)
+&usart6 {
+    status = "disabled";
+};
+
+/ {
+    kinesta {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        touchpad1: touchpad_1 {
+            compatible = "kinesta,rgb-touchpad-pwm";
+            // label = "TOUCHPAD1";
+            // PF13 (D7)
+            touch-gpios = <&gpiof 13 GPIO_ACTIVE_HIGH>;
+
+            // Red:   PE9 (D6)
+            // Green: PE13 (D3)
+            // Blue:  P11 (D5)
+            pwm-names = "red", "green", "blue";
+            pwms = <&pwm1 1 0 PWM_POLARITY_INVERTED>,
+                   <&pwm1 3 0 PWM_POLARITY_INVERTED>,
+                   <&pwm1 2 0 PWM_POLARITY_INVERTED>;
+        };
+
+        touchpad2: touchpad_2 {
+            compatible = "kinesta,rgb-touchpad-gpio";
+            // label = "TOUCHPAD1";
+            // PF12 (D8)
+            touch-gpios = <&gpiof 12 GPIO_ACTIVE_HIGH>;
+
+            // PD15 (D9)
+            r-gpios = <&gpiod 15 GPIO_ACTIVE_LOW>;
+            // PD14 (D10)
+            g-gpios = <&gpiod 14 GPIO_ACTIVE_LOW>;
+            // PA7 (D11)
+            b-gpios = <&gpioa 7 GPIO_ACTIVE_LOW>;
+        };
+    };
+};

@@ -1,0 +1,16 @@
+# Copyright (c) 2022 Titouan Christophe
+# SPDX-License-Identifier: Apache-2.0
+
+description: Duppa I2C Encoder V2.1
+compatible: duppa,i2cencoderv21
+
+include: i2c-device.yaml
+
+properties:
+    "#gpios-cells":
+        type: int
+        const: 1
+    interrupt-gpios:
+        type: phandle-array
+        required: true
+        description: gpio descriptor for the interrupt pin

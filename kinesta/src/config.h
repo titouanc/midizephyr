@@ -13,9 +13,6 @@
  */
 #define DISTANCE_SENSOR_FILTERING_ALPHA 1
 
-/* Number of distinct steps in the encoder */
-#define ENCODER_N_STEPS 32
-
 /* Cable number on the USB-MIDI interface for the MIDI events emitted by
  * the sensors of Kinesta itself */
 #define USB_MIDI_SENSORS_JACK_ID 1

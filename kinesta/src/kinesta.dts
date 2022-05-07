@@ -1,10 +1,11 @@
+// MIDI DIN connector
+// Tx on PD5 / Rx on PD6
 midi_din_uart: &usart2 {
     status = "okay";
     pinctrl-0 = <&usart2_tx_pd5 &usart2_rx_pd6>;
     pinctrl-names = "default";
     current-speed = <31250>;
 };
-
 
 &timers3 {
     status = "okay";
@@ -40,117 +41,10 @@ midi_din_uart: &usart2 {
 
 &pwm4 {
     pinctrl-0 = <
-        &tim4_ch4_pd15
         &tim4_ch3_pd14
+        &tim4_ch4_pd15
     >;
     pinctrl-names = "default";
-};
-
-/ {
-    pwmleds {
-        compatible = "pwm-leds";
-
-        pad1_pwm_r: pad1_pwm_r_led {
-            // D5
-            pwms = <&pwm1 2 0 PWM_POLARITY_NORMAL>;
-            label = "PAD1_PWM_R";
-        };
-
-        pad1_pwm_g: pad1_pwm_g_led {
-            // D3
-            pwms = <&pwm1 3 0 PWM_POLARITY_NORMAL>;
-            label = "PAD1_PWM_G";
-        };
-
-        pad1_pwm_b: pad1_pwm_b_led {
-            // D6
-            pwms = <&pwm1 1 0 PWM_POLARITY_NORMAL>;
-            label = "PAD1_PWM_B";
-        };
-
-        pad2_pwm_r: pad2_pwm_r_led {
-            // D12
-            pwms = <&pwm3 1 0 PWM_POLARITY_NORMAL>;
-            label = "PAD2_PWM_R";
-        };
-
-        pad2_pwm_g: pad2_pwm_g_led {
-            // D10
-            pwms = <&pwm4 3 0 PWM_POLARITY_NORMAL>;
-            label = "PAD2_PWM_G";
-        };
-
-        pad2_pwm_b: pad2_pwm_b_led {
-            // D9
-            pwms = <&pwm4 4 0 PWM_POLARITY_NORMAL>;
-            label = "PAD2_PWM_B";
-        };
-    };
-
-    leds {
-        compatible = "gpio-leds";
-        
-        pad3_r: pad3_r_led {
-            gpios = <&gpioe 7 0>;
-            label = "PAD3_R";
-        };
-
-        pad3_g: pad3_g_led {
-            gpios = <&gpioe 15 0>;
-            label = "PAD3_G";
-        };
-
-        pad3_b: pad3_b_led {
-            gpios = <&gpioe 8 0>;
-            label = "PAD3_B";
-        };
-
-        pad4_r: pad4_r_led {
-            // D2
-            gpios = <&gpiof 15 0>;
-            label = "PAD4_R";
-        };
-
-        pad4_g: pad4_g_led {
-            // D7
-            gpios = <&gpiof 13 0>;
-            label = "PAD4_G";
-        };
-
-        pad4_b: pad4_b_led {
-            // D4
-            gpios = <&gpiof 14 0>;
-            label = "PAD4_B";
-        };
-    };
-
-    gpio_keys {
-        pad1_out: pad1_out_led {
-            label = "PAD1_OUT";
-            gpios = <&gpiod 11 0>;
-        };
-
-        pad2_out: pad2_out_led {
-            label = "PAD2_OUT";
-            gpios = <&gpioe 2 0>;
-        };
-
-        pad3_out: pad3_out_led {
-            label = "PAD3_OUT";
-            gpios = <&gpiob 2 0>;
-        };
-
-        pad4_out: pad4_out_led {
-            label = "PAD4_OUT";
-            gpios = <&gpiof 4 0>;
-        };
-
-        encoders_irq: encoders_irq_line {
-            // D0
-            label = "ENCODERS_IRQ";
-            gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
-        };
-    };
 };
 
 &arduino_i2c {
@@ -158,15 +52,72 @@ midi_din_uart: &usart2 {
         compatible = "duppa,i2cencoderv21";
         label = "ENCODER1";
         reg = <0x72>;
+        interrupt-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
     };
 
     encoder2: encoder@73 {
         compatible = "duppa,i2cencoderv21";
         label = "ENCODER2";
         reg = <0x73>;
+        interrupt-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
     };
 };
 
+// Disable usart6 (to free up D0/D1)
 &usart6 {
     status = "disabled";
+};
+
+/ {
+    touchpad1: touchpad_1 {
+        compatible = "kinesta,rgb-touchpad-pwm";
+        // PD11
+        touch-gpios = <&gpiod 11 GPIO_ACTIVE_HIGH>;
+
+        // Red:   PE11 (D5)
+        // Green: PE13 (D3)
+        // Blue:  PE9 (D6)
+        pwm-names = "red", "green", "blue";
+        pwms = <&pwm1 2 0 PWM_POLARITY_NORMAL>,
+               <&pwm1 3 0 PWM_POLARITY_NORMAL>,
+               <&pwm1 1 0 PWM_POLARITY_NORMAL>;
+    };
+
+    touchpad2: touchpad_2 {
+        compatible = "kinesta,rgb-touchpad-pwm";
+        // PE2
+        touch-gpios = <&gpioe 2 GPIO_ACTIVE_HIGH>;
+
+        // Red:   PA6 (D12)
+        // Green: PD14 (D10)
+        // Blue:  PD15 (D9)
+        pwm-names = "red", "green", "blue";
+        pwms = <&pwm3 1 0 PWM_POLARITY_NORMAL>,
+               <&pwm4 3 0 PWM_POLARITY_NORMAL>,
+               <&pwm4 4 0 PWM_POLARITY_NORMAL>;
+    };
+
+    touchpad3: touchpad_3 {
+        compatible = "kinesta,rgb-touchpad-gpio";
+        // PE7
+        r-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
+        // PE15
+        g-gpios = <&gpioe 15 GPIO_ACTIVE_HIGH>;
+        // PE8
+        b-gpios = <&gpioe 8 GPIO_ACTIVE_HIGH>;
+        // PB2
+        touch-gpios = <&gpiob 2 GPIO_ACTIVE_HIGH>;
+    };
+
+    touchpad4: touchpad_4 {
+        compatible = "kinesta,rgb-touchpad-gpio";
+        // PF15 (D2)
+        r-gpios = <&gpiof 15 GPIO_ACTIVE_HIGH>;
+        // PF13 (D7)
+        g-gpios = <&gpiof 13 GPIO_ACTIVE_HIGH>;
+        // PF14
+        b-gpios = <&gpiof 14 GPIO_ACTIVE_HIGH>;
+        // PF4
+        touch-gpios = <&gpiof 4 GPIO_ACTIVE_HIGH>;
+    };
 };

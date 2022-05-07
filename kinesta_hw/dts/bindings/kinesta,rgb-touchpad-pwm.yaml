@@ -1,0 +1,25 @@
+# Copyright (c) 2022 Titouan Christophe
+# SPDX-License-Identifier: Apache-2.0
+
+description: RGB Touchpad (PWM - 16M colors)
+compatible: kinesta,rgb-touchpad-pwm
+
+include: base.yaml
+
+properties:
+    "#pwm-cells":
+        type: int
+        const: 3
+    pwms:
+        type: phandle-array
+        required: true
+        description: pwm descriptor for the 3 color leds, in order Red, Green, Blue
+    pwm-names:
+        type: string-array
+    "#gpio-cells":
+        type: int
+        const: 1
+    touch-gpios:
+        type: phandle-array
+        required: true
+        description: gpio descriptor for the touch output

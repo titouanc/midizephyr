@@ -4,12 +4,17 @@
 #include "encoder.h"
 #include "touchpad.h"
 
+
 typedef struct {
+    const char *name;
+    const uint8_t midi_cc_group;
     const struct device *distance_sensor;
-    const touchpad pad;
-    const touchpad pad2;
-    const encoder rgb_encoder;
-    const uint8_t cc_high_byte;
+    const struct device *primary_pad;
+    const struct device *secondary_pad;
+    const struct device *rgb_encoder;
+
+    // Events
+    struct encoder_callback_t encoder_change;
 
     // Sensor input values
     double filtered_distance_cm;
@@ -31,7 +36,5 @@ typedef struct {
 int kfb_init(kinesta_functional_block *self);
 
 int kfb_update(kinesta_functional_block *self);
-
-int kfb_update_encoder(kinesta_functional_block *self);
 
 #endif

@@ -64,7 +64,7 @@ static int kfb_update_distance(kinesta_functional_block *self)
     double t = kfb_get_distance_t(self);
     uint8_t distance_midi_cc_value = (t < 0) ? 0 : (127 * t);
     if (distance_midi_cc_value != self->distance_midi_cc_value && ! self->is_frozen){
-        const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, self->cc_high_byte | 1, distance_midi_cc_value);
+        const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, self->midi_cc_group | 1, distance_midi_cc_value);
         kinesta_midi_out(pkt);
         self->distance_midi_cc_value = distance_midi_cc_value;
     }
@@ -75,7 +75,7 @@ static int kfb_update_pad(kinesta_functional_block *self)
 {
     int64_t now = k_uptime_get();
     self->was_pad_touched = self->is_pad_touched;
-    self->is_pad_touched = gpio_pin_get_dt(&self->pad.out) > 0;
+    self->is_pad_touched = touchpad_is_touched(self->primary_pad) > 0;
 
     // Update touchpad color
     color_t color;
@@ -111,8 +111,47 @@ static int kfb_update_pad(kinesta_functional_block *self)
         // Otherwise: light magenta if USB not configured
         color = color_mul(COLOR_MAGENTA, 0.05);
     }
-    touchpad_set_color(&self->pad, color);
+    touchpad_set_color(self->primary_pad, color);
     return 0;
+}
+
+static int kfb_update_encoder(kinesta_functional_block *self, int evt)
+{
+    int r;
+    if (evt & ENCODER_EVT_PRESS){
+        // Click on the encoder: reset value
+        r = encoder_get_value(self->rgb_encoder, &self->encoder_value);
+        if (r){
+            return r;
+        }
+        // If the actual encoder value is 0: set to 1, otherwise set to 0
+        self->encoder_value = (self->encoder_value == 0) ? 1 : 0;
+        r = encoder_set_value(self->rgb_encoder, self->encoder_value);
+        if (r){
+            return r;
+        }
+    } else {
+        // Otherwise get actual value
+        r = encoder_get_value(self->rgb_encoder, &self->encoder_value);
+        if (r){
+            return r;
+        }
+    }
+
+    uint8_t encoder_midi_cc_value = 127 * self->encoder_value;
+    if (encoder_midi_cc_value != self->encoder_midi_cc_value){
+        const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, self->midi_cc_group | 2, encoder_midi_cc_value);
+        kinesta_midi_out(pkt);
+        self->encoder_midi_cc_value = encoder_midi_cc_value;
+    }
+    color_t color = color_map(COLOR_GREEN, COLOR_RED, self->encoder_value);
+    return encoder_set_color(self->rgb_encoder, color);
+}
+
+static void kfb_encoder_changed(struct encoder_callback_t *callback, int event)
+{
+    kinesta_functional_block *self = CONTAINER_OF(callback, kinesta_functional_block, encoder_change);
+    kfb_update_encoder(self, event);
 }
 
 int kfb_init(kinesta_functional_block *self)
@@ -122,60 +161,14 @@ int kfb_init(kinesta_functional_block *self)
         return r;
     }
  
-    r = touchpad_init(&self->pad);
-    if (r){
-        return r;
-    }
-
     r = kfb_update_pad(self);
     if (r){
         return r;
     }
 
-    r = encoder_init(&self->rgb_encoder);
-    if (r){
-        return r;
-    }
-
-    return kfb_update_encoder(self);
-}
-
-int kfb_update_encoder(kinesta_functional_block *self)
-{
-    int evt;
-    int r = encoder_get_event(&self->rgb_encoder, &evt);
-    if (r){
-        return r;
-    }
-
-    if (evt & ENCODER_EVT_PRESS){
-        // Click on the encoder: reset value
-        r = encoder_get_value(&self->rgb_encoder, &self->encoder_value);
-        if (r){
-            return r;
-        }
-        // If the actual encoder value is 0: set to 1, otherwise set to 0
-        self->encoder_value = (self->encoder_value == 0) ? 1 : 0;
-        r = encoder_set_value(&self->rgb_encoder, self->encoder_value);
-        if (r){
-            return r;
-        }
-    } else {
-        // Otherwise get actual value
-        r = encoder_get_value(&self->rgb_encoder, &self->encoder_value);
-        if (r){
-            return r;
-        }
-    }
-
-    uint8_t encoder_midi_cc_value = 127 * self->encoder_value;
-    if (encoder_midi_cc_value != self->encoder_midi_cc_value){
-        const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, self->cc_high_byte | 2, encoder_midi_cc_value);
-        kinesta_midi_out(pkt);
-        self->encoder_midi_cc_value = encoder_midi_cc_value;
-    }
-    color_t color = color_map(COLOR_GREEN, COLOR_RED, self->encoder_value);
-    return encoder_set_color(&self->rgb_encoder, color);
+    self->encoder_change.func = kfb_encoder_changed;
+    encoder_set_callback(self->rgb_encoder, &self->encoder_change);
+    return kfb_update_encoder(self, 0);
 }
 
 int kfb_update(kinesta_functional_block *self)

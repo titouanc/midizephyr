@@ -1,0 +1,28 @@
+# Copyright (c) 2022 Titouan Christophe
+# SPDX-License-Identifier: Apache-2.0
+
+description: RGB Touchpad (GPIO - RGBYMCW)
+compatible: kinesta,rgb-touchpad-gpio
+
+include: base.yaml
+
+properties:
+    "#gpio-cells":
+        type: int
+        const: 1
+    r-gpios:
+        type: phandle-array
+        required: true
+        description: gpio descriptor for the red led
+    g-gpios:
+        type: phandle-array
+        required: true
+        description: gpio descriptor for the green led
+    b-gpios:
+        type: phandle-array
+        required: true
+        description: gpio descriptor for the blue led
+    touch-gpios:
+        type: phandle-array
+        required: true
+        description: gpio descriptor for the touch output
