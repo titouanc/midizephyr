@@ -87,6 +87,7 @@ static int kfb_update_primary_touchpad(kinesta_functional_block *self)
             self->is_frozen = ! self->is_frozen;
         }
     } else if (self->is_frozen) {
+        // Frozen to a MIDI value: blink in the color map
         float t = (float) self->distance_midi_cc_value / 127;
         color = color_map(COLOR_GREEN, COLOR_RED, t);
         color = color_mul(color, cos256f32[(now >> 1) & 0xff]);
