@@ -29,8 +29,6 @@ typedef struct {
 
     // Software functions
     bool is_frozen;
-    int64_t last_pad_blink;
-    bool is_blink_on;
 } kinesta_functional_block;
 
 int kfb_init(kinesta_functional_block *self);

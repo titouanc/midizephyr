@@ -2,6 +2,7 @@
 #include "config.h"
 #include "usb_midi.h"
 #include "kinesta_midi.h"
+#include "lookup.h"
 
 #include <zephyr.h>
 #include <device.h>
@@ -84,20 +85,11 @@ static int kfb_update_pad(kinesta_functional_block *self)
         color = COLOR_WHITE;
         if (! self->was_pad_touched){
             self->is_frozen = ! self->is_frozen;
-            self->last_pad_blink = now;
         }
     } else if (self->is_frozen) {
-        if (now - self->last_pad_blink > 150){
-            self->is_blink_on = ! self->is_blink_on;
-            self->last_pad_blink = now;
-        }
-        if (self->is_blink_on){
-            float t = self->distance_midi_cc_value;
-            t /= 127;
-            color = color_map(COLOR_GREEN, COLOR_RED, t);
-        } else {
-            color = color_rgb(0, 0, 0);
-        }
+        float t = (float) self->distance_midi_cc_value / 127;
+        color = color_map(COLOR_GREEN, COLOR_RED, t);
+        color = color_mul(color, cos256f32[(now >> 1) & 0xff]);
     } else if (self->is_in_tracking_zone){
         // In tracking zone: colormap green to red
         color = color_map(COLOR_GREEN, COLOR_RED, kfb_get_distance_t(self));
