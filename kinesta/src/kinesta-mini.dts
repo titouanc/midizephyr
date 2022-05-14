@@ -63,7 +63,7 @@ midi_din_uart: &usart2 {
             b-gpios = <&gpiob 7 GPIO_ACTIVE_HIGH>;
         };
 
-        slice1: functional_block1 {
+        slice1 {
             label = "SLICE1";
             compatible = "kinesta,functional-block";
             midi-cc-group = <0x10>;

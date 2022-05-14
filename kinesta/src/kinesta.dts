@@ -69,55 +69,79 @@ midi_din_uart: &usart2 {
 };
 
 / {
-    touchpad1: touchpad_1 {
-        compatible = "kinesta,rgb-touchpad-pwm";
-        // PD11
-        touch-gpios = <&gpiod 11 GPIO_ACTIVE_HIGH>;
+    kinesta {
+        touchpad1: touchpad_1 {
+            compatible = "kinesta,rgb-touchpad-pwm";
+            // PD11
+            touch-gpios = <&gpiod 11 GPIO_ACTIVE_HIGH>;
 
-        // Red:   PE11 (D5)
-        // Green: PE13 (D3)
-        // Blue:  PE9 (D6)
-        pwm-names = "red", "green", "blue";
-        pwms = <&pwm1 2 0 PWM_POLARITY_NORMAL>,
-               <&pwm1 3 0 PWM_POLARITY_NORMAL>,
-               <&pwm1 1 0 PWM_POLARITY_NORMAL>;
-    };
+            // Red:   PE11 (D5)
+            // Green: PE13 (D3)
+            // Blue:  PE9 (D6)
+            pwm-names = "red", "green", "blue";
+            pwms = <&pwm1 2 0 PWM_POLARITY_NORMAL>,
+                   <&pwm1 3 0 PWM_POLARITY_NORMAL>,
+                   <&pwm1 1 0 PWM_POLARITY_NORMAL>;
+        };
 
-    touchpad2: touchpad_2 {
-        compatible = "kinesta,rgb-touchpad-pwm";
-        // PE2
-        touch-gpios = <&gpioe 2 GPIO_ACTIVE_HIGH>;
+        touchpad2: touchpad_2 {
+            compatible = "kinesta,rgb-touchpad-pwm";
+            // PE2
+            touch-gpios = <&gpioe 2 GPIO_ACTIVE_HIGH>;
 
-        // Red:   PA6 (D12)
-        // Green: PD14 (D10)
-        // Blue:  PD15 (D9)
-        pwm-names = "red", "green", "blue";
-        pwms = <&pwm3 1 0 PWM_POLARITY_NORMAL>,
-               <&pwm4 3 0 PWM_POLARITY_NORMAL>,
-               <&pwm4 4 0 PWM_POLARITY_NORMAL>;
-    };
+            // Red:   PA6 (D12)
+            // Green: PD14 (D10)
+            // Blue:  PD15 (D9)
+            pwm-names = "red", "green", "blue";
+            pwms = <&pwm3 1 0 PWM_POLARITY_NORMAL>,
+                   <&pwm4 3 0 PWM_POLARITY_NORMAL>,
+                   <&pwm4 4 0 PWM_POLARITY_NORMAL>;
+        };
 
-    touchpad3: touchpad_3 {
-        compatible = "kinesta,rgb-touchpad-gpio";
-        // PE7
-        r-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
-        // PE15
-        g-gpios = <&gpioe 15 GPIO_ACTIVE_HIGH>;
-        // PE8
-        b-gpios = <&gpioe 8 GPIO_ACTIVE_HIGH>;
-        // PB2
-        touch-gpios = <&gpiob 2 GPIO_ACTIVE_HIGH>;
-    };
+        touchpad3: touchpad_3 {
+            compatible = "kinesta,rgb-touchpad-gpio";
+            // PE7
+            r-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
+            // PE15
+            g-gpios = <&gpioe 15 GPIO_ACTIVE_HIGH>;
+            // PE8
+            b-gpios = <&gpioe 8 GPIO_ACTIVE_HIGH>;
+            // PB2
+            touch-gpios = <&gpiob 2 GPIO_ACTIVE_HIGH>;
+        };
 
-    touchpad4: touchpad_4 {
-        compatible = "kinesta,rgb-touchpad-gpio";
-        // PF15 (D2)
-        r-gpios = <&gpiof 15 GPIO_ACTIVE_HIGH>;
-        // PF13 (D7)
-        g-gpios = <&gpiof 13 GPIO_ACTIVE_HIGH>;
-        // PF14
-        b-gpios = <&gpiof 14 GPIO_ACTIVE_HIGH>;
-        // PF4
-        touch-gpios = <&gpiof 4 GPIO_ACTIVE_HIGH>;
+        touchpad4: touchpad_4 {
+            compatible = "kinesta,rgb-touchpad-gpio";
+            // PF15 (D2)
+            r-gpios = <&gpiof 15 GPIO_ACTIVE_HIGH>;
+            // PF13 (D7)
+            g-gpios = <&gpiof 13 GPIO_ACTIVE_HIGH>;
+            // PF14
+            b-gpios = <&gpiof 14 GPIO_ACTIVE_HIGH>;
+            // PF4
+            touch-gpios = <&gpiof 4 GPIO_ACTIVE_HIGH>;
+        };
+
+        slice1 {
+            label = "SLICE1";
+            compatible = "kinesta,functional-block";
+            midi-cc-group = <0x10>;
+
+            primary-touchpad = <&touchpad1>;
+            secondary-touchpad = <&touchpad3>;
+            encoder = <&encoder1>;
+            distance-sensor = <&vl53l0x_r>;
+        };
+
+        slice2 {
+            label = "SLICE2";
+            compatible = "kinesta,functional-block";
+            midi-cc-group = <0x10>;
+
+            primary-touchpad = <&touchpad2>;
+            secondary-touchpad = <&touchpad4>;
+            encoder = <&encoder2>;
+            distance-sensor = <&vl53l0x_l>;
+        };
     };
 };
