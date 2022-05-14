@@ -63,6 +63,54 @@ midi_din_uart: &usart2 {
     };
 };
 
+// Second VL53L0A1 shield on I2C_2
+// SCL: PB10
+// SDA: PB11
+&i2c2 {
+    status = "okay";
+    pinctrl-0 = <&i2c2_scl_pb10 &i2c2_sda_pb11>;
+    pinctrl-names = "default";
+
+    expander3: stmpe1600@42 {
+        compatible = "st,stmpe1600";
+        label = "EXPANDER3";
+        reg = <0x42>;
+        ngpios = <16>;
+        gpio-controller;
+        #gpio-cells = <2>;
+    };
+    expander4: stmpe1600@43 {
+        compatible = "st,stmpe1600";
+        label = "EXPANDER4";
+        reg = <0x43>;
+        ngpios = <16>;
+        gpio-controller;
+        #gpio-cells = <2>;
+    };
+
+    /* Center sensor soldered on the shield */
+    vl53l0x_c2: vl53l0x@30 {
+        compatible = "st,vl53l0x";
+        label = "VL53L0X_C2";
+        reg = <0x30>;
+        xshut-gpios = <&expander3 15 0>;
+    };
+
+    /* Satellites optional sensors */
+    vl53l0x_l2: vl53l0x@31 {
+        compatible = "st,vl53l0x";
+        label = "VL53L0X_L2";
+        reg = <0x31>;
+        xshut-gpios = <&expander4 14 0>;
+    };
+    vl53l0x_r2: vl53l0x@32 {
+        compatible = "st,vl53l0x";
+        label = "VL53L0X_R2";
+        reg = <0x32>;
+        xshut-gpios = <&expander4 15 0>;
+    };
+};
+
 // Disable usart6 (to free up D0/D1)
 &usart6 {
     status = "disabled";
