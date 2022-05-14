@@ -34,7 +34,7 @@ static void touchpad_pwm_set_color_channel(const struct device *dev, color_chann
     __ASSERT(channel < 3, "Invalid color channel !");
     const struct touchpad_pwm_config *const config = dev->config;
     const struct pwm_dt_spec *pwm = &(&config->led_r)[channel];
-    if (pwm_set_dt(pwm, 10000*(1 << COLOR_CHAN_BITS), 10000*value)){
+    if (pwm_set_dt(pwm, 7000*COLOR_CHAN_MAX, 7000*value)){
         LOG_ERR("[%s] Unable to set channel %d (%s%d)", dev->name, channel, pwm->dev->name, pwm->channel);
     }
 }
