@@ -43,7 +43,7 @@ midi_din_uart: &usart2 {
 
             // Red:   PE9 (D6)
             // Green: PE13 (D3)
-            // Blue:  P11 (D5)
+            // Blue:  PE11 (D5)
             pwm-names = "red", "green", "blue";
             pwms = <&pwm1 1 0 PWM_POLARITY_INVERTED>,
                    <&pwm1 3 0 PWM_POLARITY_INVERTED>,
