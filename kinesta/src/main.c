@@ -21,6 +21,15 @@ static kinesta_functional_block kfbs[] = {                                      
 void main(void)
 {
     int i;
+
+    if (usb_enable(NULL) == 0){
+        LOG_INF("USB enabled");
+    } else {
+        LOG_ERR("Failed to enable USB");
+        return;
+    }
+
+
     for (i=0; i<N_KFBS; i++){
         kfb_init(&kfbs[i]);
     }
