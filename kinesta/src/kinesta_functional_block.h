@@ -4,14 +4,27 @@
 #include "encoder.h"
 #include "touchpad.h"
 
+/*
+#define KFB_FROM_DT(inst) \
+    {\
+        .name=DT_INST_PROP(inst, label),\
+        .midi_cc_group=DT_INST_PROP(inst, midi_cc_group),\
+        .distance_sensor=DEVICE_DT_GET(DT_INST_PROP(inst, distance_sensor)),\
+        .primary_touchpad=DEVICE_DT_GET(DT_INST_PROP(inst, primary_touchpad)),\
+        .secondary_touchpad=DEVICE_DT_GET(DT_INST_PROP(inst, secondary_touchpad)),\
+        .encoder=DEVICE_DT_GET(DT_INST_PROP(inst, encoder)),\
+    },
+
+DT_FOREACH_STATUS_OKAY(kinesta_functional_block, KFB_FROM_DT)
+*/
 
 typedef struct {
     const char *name;
     const uint8_t midi_cc_group;
     const struct device *distance_sensor;
-    const struct device *primary_pad;
-    const struct device *secondary_pad;
-    const struct device *rgb_encoder;
+    const struct device *primary_touchpad;
+    const struct device *secondary_touchpad;
+    const struct device *encoder;
 
     // Events
     struct encoder_callback_t encoder_change;

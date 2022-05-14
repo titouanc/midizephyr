@@ -38,7 +38,6 @@ midi_din_uart: &usart2 {
 
         touchpad1: touchpad_1 {
             compatible = "kinesta,rgb-touchpad-pwm";
-            // label = "TOUCHPAD1";
             // PF13 (D7)
             touch-gpios = <&gpiof 13 GPIO_ACTIVE_HIGH>;
 
@@ -53,16 +52,26 @@ midi_din_uart: &usart2 {
 
         touchpad2: touchpad_2 {
             compatible = "kinesta,rgb-touchpad-gpio";
-            // label = "TOUCHPAD1";
-            // PF12 (D8)
-            touch-gpios = <&gpiof 12 GPIO_ACTIVE_HIGH>;
+            // PC13 (Nucleo-144 User button)
+            touch-gpios = <&gpioc 13 GPIO_ACTIVE_HIGH>;
 
-            // PD15 (D9)
-            r-gpios = <&gpiod 15 GPIO_ACTIVE_LOW>;
-            // PD14 (D10)
-            g-gpios = <&gpiod 14 GPIO_ACTIVE_LOW>;
-            // PA7 (D11)
-            b-gpios = <&gpioa 7 GPIO_ACTIVE_LOW>;
+            // PB14: (Nucleo-144 RED LED)
+            r-gpios = <&gpiob 14 GPIO_ACTIVE_HIGH>;
+            // PB0: (Nucleo-144 GREEN LED)
+            g-gpios = <&gpiob 0 GPIO_ACTIVE_HIGH>;
+            // PB7: (Nucleo-144 BLUE LED)
+            b-gpios = <&gpiob 7 GPIO_ACTIVE_HIGH>;
+        };
+
+        slice1: functional_block1 {
+            label = "SLICE1";
+            compatible = "kinesta,functional-block";
+            midi-cc-group = <0x10>;
+
+            primary-touchpad = <&touchpad1>;
+            secondary-touchpad = <&touchpad2>;
+            encoder = <&encoder1>;
+            distance-sensor = <&vl53l0x_c>;
         };
     };
 };

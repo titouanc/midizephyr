@@ -1,0 +1,24 @@
+# Copyright (c) 2022 Titouan Christophe
+# SPDX-License-Identifier: Apache-2.0
+
+description: Kinesta functional block
+compatible: kinesta,functional-block
+
+include: base.yaml
+
+properties:
+    primary-touchpad:
+        type: phandle
+        required: true
+    secondary-touchpad:
+        type: phandle
+        required: true
+    encoder:
+        type: phandle
+        required: true
+    distance-sensor:
+        type: phandle
+        required: true
+    midi-cc-group:
+        type: int
+        required: true

@@ -76,7 +76,7 @@ static int kfb_update_pad(kinesta_functional_block *self)
 {
     int64_t now = k_uptime_get();
     self->was_pad_touched = self->is_pad_touched;
-    self->is_pad_touched = touchpad_is_touched(self->primary_pad) > 0;
+    self->is_pad_touched = touchpad_is_touched(self->primary_touchpad) > 0;
 
     // Update touchpad color
     color_t color;
@@ -103,7 +103,7 @@ static int kfb_update_pad(kinesta_functional_block *self)
         // Otherwise: light magenta if USB not configured
         color = color_mul(COLOR_MAGENTA, 0.05);
     }
-    touchpad_set_color(self->primary_pad, color);
+    touchpad_set_color(self->primary_touchpad, color);
     return 0;
 }
 
@@ -112,19 +112,19 @@ static int kfb_update_encoder(kinesta_functional_block *self, int evt)
     int r;
     if (evt & ENCODER_EVT_PRESS){
         // Click on the encoder: reset value
-        r = encoder_get_value(self->rgb_encoder, &self->encoder_value);
+        r = encoder_get_value(self->encoder, &self->encoder_value);
         if (r){
             return r;
         }
         // If the actual encoder value is 0: set to 1, otherwise set to 0
         self->encoder_value = (self->encoder_value == 0) ? 1 : 0;
-        r = encoder_set_value(self->rgb_encoder, self->encoder_value);
+        r = encoder_set_value(self->encoder, self->encoder_value);
         if (r){
             return r;
         }
     } else {
         // Otherwise get actual value
-        r = encoder_get_value(self->rgb_encoder, &self->encoder_value);
+        r = encoder_get_value(self->encoder, &self->encoder_value);
         if (r){
             return r;
         }
@@ -137,7 +137,7 @@ static int kfb_update_encoder(kinesta_functional_block *self, int evt)
         self->encoder_midi_cc_value = encoder_midi_cc_value;
     }
     color_t color = color_map(COLOR_GREEN, COLOR_RED, self->encoder_value);
-    return encoder_set_color(self->rgb_encoder, color);
+    return encoder_set_color(self->encoder, color);
 }
 
 static void kfb_encoder_changed(struct encoder_callback_t *callback, int event)
@@ -159,7 +159,7 @@ int kfb_init(kinesta_functional_block *self)
     }
 
     self->encoder_change.func = kfb_encoder_changed;
-    encoder_set_callback(self->rgb_encoder, &self->encoder_change);
+    encoder_set_callback(self->encoder, &self->encoder_change);
     return kfb_update_encoder(self, 0);
 }
 
