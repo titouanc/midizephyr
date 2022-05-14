@@ -72,18 +72,18 @@ static int kfb_update_distance(kinesta_functional_block *self)
     return 0;
 }
 
-static int kfb_update_pad(kinesta_functional_block *self)
+static int kfb_update_primary_touchpad(kinesta_functional_block *self)
 {
     int64_t now = k_uptime_get();
-    self->was_pad_touched = self->is_pad_touched;
-    self->is_pad_touched = touchpad_is_touched(self->primary_touchpad) > 0;
+    self->was_primary_pad_touched = self->is_primary_pad_touched;
+    self->is_primary_pad_touched = touchpad_is_touched(self->primary_touchpad) > 0;
 
     // Update touchpad color
     color_t color;
-    if (self->is_pad_touched){
+    if (self->is_primary_pad_touched){
         // Pad touched: white
         color = COLOR_WHITE;
-        if (! self->was_pad_touched){
+        if (! self->was_primary_pad_touched){
             self->is_frozen = ! self->is_frozen;
         }
     } else if (self->is_frozen) {
@@ -104,6 +104,20 @@ static int kfb_update_pad(kinesta_functional_block *self)
         color = color_mul(COLOR_MAGENTA, 0.05);
     }
     touchpad_set_color(self->primary_touchpad, color);
+    return 0;
+}
+
+static int kfb_update_secondary_touchpad(kinesta_functional_block *self)
+{
+    self->was_secondary_pad_touched = self->is_secondary_pad_touched;
+    self->is_secondary_pad_touched = touchpad_is_touched(self->secondary_touchpad);
+    if (self->was_secondary_pad_touched != self->is_secondary_pad_touched) {
+        const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, self->midi_cc_group | 2, 127 * self->is_secondary_pad_touched);
+        kinesta_midi_out(pkt);
+    }
+
+    color_t color = self->is_secondary_pad_touched ? COLOR_WHITE : 0;
+    touchpad_set_color(self->secondary_touchpad, color);
     return 0;
 }
 
@@ -132,7 +146,7 @@ static int kfb_update_encoder(kinesta_functional_block *self, int evt)
 
     uint8_t encoder_midi_cc_value = 127 * self->encoder_value;
     if (encoder_midi_cc_value != self->encoder_midi_cc_value){
-        const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, self->midi_cc_group | 2, encoder_midi_cc_value);
+        const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, self->midi_cc_group | 3, encoder_midi_cc_value);
         kinesta_midi_out(pkt);
         self->encoder_midi_cc_value = encoder_midi_cc_value;
     }
@@ -148,19 +162,15 @@ static void kfb_encoder_changed(struct encoder_callback_t *callback, int event)
 
 int kfb_init(kinesta_functional_block *self)
 {
-    int r = kfb_measure_distance_cm(self, &self->filtered_distance_cm);
-    if (r){
-        return r;
-    }
- 
-    r = kfb_update_pad(self);
+    self->encoder_change.func = kfb_encoder_changed;
+    encoder_set_callback(self->encoder, &self->encoder_change);
+
+    int r = kfb_update_encoder(self, 0);
     if (r){
         return r;
     }
 
-    self->encoder_change.func = kfb_encoder_changed;
-    encoder_set_callback(self->encoder, &self->encoder_change);
-    return kfb_update_encoder(self, 0);
+    return kfb_update(self);
 }
 
 int kfb_update(kinesta_functional_block *self)
@@ -170,5 +180,10 @@ int kfb_update(kinesta_functional_block *self)
         return r;
     }
 
-    return kfb_update_pad(self);
+    r = kfb_update_primary_touchpad(self);
+    if (r){
+        return r;
+    }
+
+    return kfb_update_secondary_touchpad(self);
 }

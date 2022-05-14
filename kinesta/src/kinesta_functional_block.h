@@ -33,8 +33,10 @@ typedef struct {
     double filtered_distance_cm;
     float encoder_value;
     bool is_in_tracking_zone;
-    bool is_pad_touched;
-    bool was_pad_touched;
+    bool is_primary_pad_touched;
+    bool was_primary_pad_touched;
+    bool is_secondary_pad_touched;
+    bool was_secondary_pad_touched;
 
     // MIDI-CC values
     uint8_t distance_midi_cc_value;
