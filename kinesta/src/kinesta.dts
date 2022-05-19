@@ -7,6 +7,15 @@ midi_din_uart: &usart2 {
     current-speed = <31250>;
 };
 
+&timers2 {
+    status = "okay";
+    st,prescaler = <10000>;
+
+    pwm2: pwm {
+        status = "okay";
+    };
+};
+
 &timers3 {
     status = "okay";
     st,prescaler = <10000>;
@@ -25,24 +34,56 @@ midi_din_uart: &usart2 {
     };
 };
 
+&timers9 {
+    status = "okay";
+    st,prescaler = <10000>;
+
+    pwm9: pwm {
+        status = "okay";
+    };
+};
+
 &pwm1 {
     pinctrl-0 = <
         &tim1_ch1_pe9
         &tim1_ch2_pe11
         &tim1_ch3_pe13
+        &tim1_ch4_pe14
+    >;
+    pinctrl-names = "default";
+};
+
+&pwm2 {
+    pinctrl-0 = <
+        &tim2_ch1_pa5
+        &tim2_ch4_pa3
     >;
     pinctrl-names = "default";
 };
 
 &pwm3 {
-    pinctrl-0 = <&tim3_ch1_pa6>;
+    pinctrl-0 = <
+        &tim3_ch1_pa6
+        &tim3_ch3_pc8
+        &tim3_ch4_pc9
+    >;
     pinctrl-names = "default";
 };
 
 &pwm4 {
     pinctrl-0 = <
+        &tim4_ch1_pd12
+        &tim4_ch2_pd13
         &tim4_ch3_pd14
         &tim4_ch4_pd15
+    >;
+    pinctrl-names = "default";
+};
+
+&pwm9 {
+    pinctrl-0 = <
+        &tim9_ch1_pe5
+        &tim9_ch2_pe6
     >;
     pinctrl-names = "default";
 };
@@ -147,27 +188,25 @@ midi_din_uart: &usart2 {
         };
 
         touchpad3: touchpad_3 {
-            compatible = "kinesta,rgb-touchpad-gpio";
-            // PE7
-            r-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
-            // PE15
-            g-gpios = <&gpioe 15 GPIO_ACTIVE_HIGH>;
-            // PE8
-            b-gpios = <&gpioe 8 GPIO_ACTIVE_HIGH>;
+            compatible = "kinesta,rgb-touchpad-pwm";
             // PB2
             touch-gpios = <&gpiob 2 GPIO_ACTIVE_HIGH>;
+
+            pwm-names = "red", "green", "blue";
+            pwms = <&pwm9 1 0 PWM_POLARITY_NORMAL>,
+                   <&pwm1 4 0 PWM_POLARITY_NORMAL>,
+                   <&pwm9 2 0 PWM_POLARITY_NORMAL>;
         };
 
         touchpad4: touchpad_4 {
-            compatible = "kinesta,rgb-touchpad-gpio";
-            // PF15 (D2)
-            r-gpios = <&gpiof 15 GPIO_ACTIVE_HIGH>;
-            // PF13 (D7)
-            g-gpios = <&gpiof 13 GPIO_ACTIVE_HIGH>;
-            // PF14
-            b-gpios = <&gpiof 14 GPIO_ACTIVE_HIGH>;
+            compatible = "kinesta,rgb-touchpad-pwm";
             // PF4
             touch-gpios = <&gpiof 4 GPIO_ACTIVE_HIGH>;
+
+            pwm-names = "red", "green", "blue";
+            pwms = <&pwm4 1 0 PWM_POLARITY_NORMAL>,
+                   <&pwm2 1 0 PWM_POLARITY_NORMAL>,
+                   <&pwm4 2 0 PWM_POLARITY_NORMAL>;
         };
 
         slice1 {
@@ -176,7 +215,7 @@ midi_din_uart: &usart2 {
             midi-cc-group = <0x10>;
 
             primary-touchpad = <&touchpad1>;
-            secondary-touchpad = <&touchpad3>;
+            secondary-touchpad = <&touchpad4>;
             encoder = <&encoder1>;
             distance-sensor = <&vl53l0x_r>;
         };
@@ -187,7 +226,7 @@ midi_din_uart: &usart2 {
             midi-cc-group = <0x20>;
 
             primary-touchpad = <&touchpad2>;
-            secondary-touchpad = <&touchpad4>;
+            secondary-touchpad = <&touchpad3>;
             encoder = <&encoder2>;
             distance-sensor = <&vl53l0x_l>;
         };
