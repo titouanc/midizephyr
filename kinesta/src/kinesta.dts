@@ -189,8 +189,8 @@ midi_din_uart: &usart2 {
 
         touchpad3: touchpad_3 {
             compatible = "kinesta,rgb-touchpad-pwm";
-            // PB2
-            touch-gpios = <&gpiob 2 GPIO_ACTIVE_HIGH>;
+            // PF4
+            touch-gpios = <&gpiof 4 GPIO_ACTIVE_HIGH>;
 
             pwm-names = "red", "green", "blue";
             pwms = <&pwm9 1 0 PWM_POLARITY_NORMAL>,
@@ -200,8 +200,8 @@ midi_din_uart: &usart2 {
 
         touchpad4: touchpad_4 {
             compatible = "kinesta,rgb-touchpad-pwm";
-            // PF4
-            touch-gpios = <&gpiof 4 GPIO_ACTIVE_HIGH>;
+            // PB2
+            touch-gpios = <&gpiob 2 GPIO_ACTIVE_HIGH>;
 
             pwm-names = "red", "green", "blue";
             pwms = <&pwm4 1 0 PWM_POLARITY_NORMAL>,

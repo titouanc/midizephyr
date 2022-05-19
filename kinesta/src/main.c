@@ -44,6 +44,6 @@ void main(void)
         for (i=0; i<N_KFBS; i++){
             kfb_update(&kfbs[i]);
         }
-        k_sleep(K_MSEC(10));
+        k_sleep(K_MSEC(1));
     }
 }
