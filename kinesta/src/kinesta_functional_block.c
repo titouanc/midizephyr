@@ -163,6 +163,11 @@ static void kfb_encoder_changed(struct encoder_callback_t *callback, int event)
 
 int kfb_init(kinesta_functional_block *self)
 {
+    if (! self->distance_sensor){
+        LOG_ERR("Invalid device for distance sensor");
+        return -1;
+    }
+
     self->encoder_change.func = kfb_encoder_changed;
     encoder_set_callback(self->encoder, &self->encoder_change);
 

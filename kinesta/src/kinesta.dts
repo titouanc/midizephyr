@@ -43,6 +43,33 @@ midi_din_uart: &usart2 {
     };
 };
 
+&timers11 {
+    status = "okay";
+    st,prescaler = <10000>;
+
+    pwm11: pwm {
+        status = "okay";
+    };
+};
+
+&timers13 {
+    status = "okay";
+    st,prescaler = <10000>;
+
+    pwm13: pwm {
+        status = "okay";
+    };
+};
+
+&timers14 {
+    status = "okay";
+    st,prescaler = <10000>;
+
+    pwm14: pwm {
+        status = "okay";
+    };
+};
+
 &pwm1 {
     pinctrl-0 = <
         &tim1_ch1_pe9
@@ -88,6 +115,21 @@ midi_din_uart: &usart2 {
     pinctrl-names = "default";
 };
 
+&pwm11 {
+    pinctrl-0 = <&tim11_ch1_pf7>;
+    pinctrl-names = "default";
+};
+
+&pwm13 {
+    pinctrl-0 = <&tim13_ch1_pf8>;
+    pinctrl-names = "default";
+};
+
+&pwm14 {
+    pinctrl-0 = <&tim14_ch1_pf9>;
+    pinctrl-names = "default";
+};
+
 &arduino_i2c {
     encoder1: encoder@72 {
         compatible = "duppa,i2cencoderv21";
@@ -100,6 +142,13 @@ midi_din_uart: &usart2 {
         compatible = "duppa,i2cencoderv21";
         label = "ENCODER2";
         reg = <0x73>;
+        interrupt-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
+    };
+
+    encoder3: encoder@70 {
+        compatible = "duppa,i2cencoderv21";
+        label = "ENCODER3";
+        reg = <0x70>;
         interrupt-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
     };
 };
@@ -209,6 +258,26 @@ midi_din_uart: &usart2 {
                    <&pwm4 2 0 PWM_POLARITY_NORMAL>;
         };
 
+        touchpad5: touchpad_5 {
+            compatible = "kinesta,rgb-touchpad-pwm";
+
+            touch-gpios  = <&gpioc 10 GPIO_ACTIVE_HIGH>;
+            pwm-names = "red", "green", "blue";
+            pwms = <&pwm3 3 0 PWM_POLARITY_NORMAL>,
+                   <&pwm3 4 0 PWM_POLARITY_NORMAL>,
+                   <&pwm2 4 0 PWM_POLARITY_NORMAL>;
+        };
+
+        touchpad6: touchpad_6 {
+            compatible = "kinesta,rgb-touchpad-pwm";
+
+            touch-gpios  = <&gpiog 1 GPIO_ACTIVE_HIGH>;
+            pwm-names = "red", "green", "blue";
+            pwms = <&pwm11 1 0 PWM_POLARITY_NORMAL>,
+                   <&pwm14 1 0 PWM_POLARITY_NORMAL>,
+                   <&pwm13 1 0 PWM_POLARITY_NORMAL>;
+        };
+
         slice1 {
             label = "SLICE1";
             compatible = "kinesta,functional-block";
@@ -229,6 +298,17 @@ midi_din_uart: &usart2 {
             secondary-touchpad = <&touchpad3>;
             encoder = <&encoder2>;
             distance-sensor = <&vl53l0x_l>;
+        };
+
+        slice3 {
+            label = "SLICE3";
+            compatible = "kinesta,functional-block";
+            midi-cc-group = <0x20>;
+
+            primary-touchpad = <&touchpad5>;
+            secondary-touchpad = <&touchpad6>;
+            encoder = <&encoder3>;
+            distance-sensor = <&vl53l0x_l2>;
         };
     };
 };

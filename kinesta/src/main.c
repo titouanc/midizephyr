@@ -22,6 +22,39 @@ static kinesta_functional_block kfbs[] = {
     DT_FOREACH_STATUS_OKAY(kinesta_functional_block, KFB_FROM_DT)
 };
 
+void test_touchpads()
+{
+    color_t color;
+    while (true){
+        for (float t=0; t<=1; t+=0.01){
+            for (int i=0; i<N_KFBS; i++){
+                color = color_map(COLOR_RED, COLOR_GREEN, t);
+                touchpad_set_color(kfbs[i].primary_touchpad, color);
+                touchpad_set_color(kfbs[i].secondary_touchpad, color);
+            }
+            k_sleep(K_MSEC(100));
+        }
+
+        for (float t=0; t<=1; t+=0.01){
+            for (int i=0; i<N_KFBS; i++){
+                color = color_map(COLOR_GREEN, COLOR_BLUE, t);
+                touchpad_set_color(kfbs[i].primary_touchpad, color);
+                touchpad_set_color(kfbs[i].secondary_touchpad, color);
+            }
+            k_sleep(K_MSEC(100));
+        }
+
+        for (float t=0; t<=1; t+=0.01){
+            for (int i=0; i<N_KFBS; i++){
+                color = color_map(COLOR_BLUE, COLOR_RED, t);
+                touchpad_set_color(kfbs[i].primary_touchpad, color);
+                touchpad_set_color(kfbs[i].secondary_touchpad, color);
+            }
+            k_sleep(K_MSEC(100));
+        }
+    }
+}
+
 void main(void)
 {
     int i;
@@ -34,9 +67,13 @@ void main(void)
     }
 
     LOG_INF("Initializing %d KFB(s)", (int) N_KFBS);
+    // test_touchpads();
+
     for (i=0; i<N_KFBS; i++){
         LOG_INF("Initializing KFB %s", kfbs[i].name);
-        kfb_init(&kfbs[i]);
+        if (kfb_init(&kfbs[i])){
+            return;
+        }
     }
 
     LOG_INF("Starting mainloop");
