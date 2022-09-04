@@ -73,7 +73,7 @@ static inline int encoder_i2c_write(const struct device *dev, uint8_t reg, const
     const struct encoder_config const *config = dev->config;
     int ret = i2c_burst_write(config->i2c.bus, config->i2c.addr, reg, data, size);
     if (ret){
-        LOG_ERR("[%s] I2C read of register 0x%02X with size %d failed: %d",
+        LOG_ERR("[%s] I2C write of register 0x%02X with size %d failed: %d",
                 dev->name, (int) reg, size, ret);
     }
     return ret;
