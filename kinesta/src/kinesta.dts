@@ -303,7 +303,7 @@ midi_din_uart: &usart2 {
         slice3 {
             label = "SLICE3";
             compatible = "kinesta,functional-block";
-            midi-cc-group = <0x20>;
+            midi-cc-group = <0x30>;
 
             primary-touchpad = <&touchpad5>;
             secondary-touchpad = <&touchpad6>;
