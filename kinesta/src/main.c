@@ -22,41 +22,40 @@ static kinesta_functional_block kfbs[] = {
     DT_FOREACH_STATUS_OKAY(kinesta_functional_block, KFB_FROM_DT)
 };
 
-void test_touchpads()
+void scan_slices_rgb()
 {
-    color_t color;
-    while (true){
-        for (float t=0; t<=1; t+=0.01){
-            for (int i=0; i<N_KFBS; i++){
-                color = color_map(COLOR_RED, COLOR_GREEN, t);
-                touchpad_set_color(kfbs[i].primary_touchpad, color);
-                touchpad_set_color(kfbs[i].secondary_touchpad, color);
-            }
-            k_sleep(K_MSEC(100));
-        }
+    color_t colors[] = {COLOR_RED, COLOR_GREEN, COLOR_BLUE};
 
-        for (float t=0; t<=1; t+=0.01){
-            for (int i=0; i<N_KFBS; i++){
-                color = color_map(COLOR_GREEN, COLOR_BLUE, t);
-                touchpad_set_color(kfbs[i].primary_touchpad, color);
-                touchpad_set_color(kfbs[i].secondary_touchpad, color);
-            }
-            k_sleep(K_MSEC(100));
-        }
+    for (int i=0; i<N_KFBS; i++){
+        LOG_INF("Slice %d", i+1);
+        for (int j=0; j<ARRAY_SIZE(colors); j++){
+            touchpad_set_color(kfbs[i].primary_touchpad, colors[j]);
+            k_sleep(K_MSEC(250));
+            touchpad_set_color(kfbs[i].primary_touchpad, 0);
 
-        for (float t=0; t<=1; t+=0.01){
-            for (int i=0; i<N_KFBS; i++){
-                color = color_map(COLOR_BLUE, COLOR_RED, t);
-                touchpad_set_color(kfbs[i].primary_touchpad, color);
-                touchpad_set_color(kfbs[i].secondary_touchpad, color);
-            }
-            k_sleep(K_MSEC(100));
+            touchpad_set_color(kfbs[i].secondary_touchpad, colors[j]);
+            k_sleep(K_MSEC(250));
+            touchpad_set_color(kfbs[i].secondary_touchpad, 0);
+
+            encoder_set_color(kfbs[i].encoder, colors[j]);
+            k_sleep(K_MSEC(250));
+            encoder_set_color(kfbs[i].encoder, 0);
+            k_sleep(K_MSEC(250));
         }
+    }
+}
+
+void autotest()
+{
+    while (true) {
+        scan_slices_rgb();
     }
 }
 
 void main(void)
 {
+    autotest();
+
     int i;
 
     if (usb_enable(NULL) == 0){
