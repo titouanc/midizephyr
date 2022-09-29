@@ -33,6 +33,10 @@ void scan_slices_rgb()
             k_sleep(K_MSEC(250));
             touchpad_set_color(kfbs[i].primary_touchpad, 0);
 
+            encoder_set_color(kfbs[i].encoder, colors[j]);
+            k_sleep(K_MSEC(250));
+            encoder_set_color(kfbs[i].encoder, 0);
+
             touchpad_set_color(kfbs[i].secondary_touchpad, colors[j]);
             k_sleep(K_MSEC(250));
             touchpad_set_color(kfbs[i].secondary_touchpad, 0);
