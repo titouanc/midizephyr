@@ -165,12 +165,12 @@ int kfb_init(kinesta_functional_block *self)
 {
     if (! device_is_ready(self->distance_sensor)){
         LOG_ERR("Invalid device for distance sensor");
-        return -1;
+        // return -1;
     }
 
     if (! device_is_ready(self->encoder)){
         LOG_ERR("Invalid device for encoder");
-        return -1;
+        // return -1;
     }
 
     self->encoder_change.func = kfb_encoder_changed;
@@ -178,7 +178,7 @@ int kfb_init(kinesta_functional_block *self)
 
     int r = kfb_update_encoder(self, 0);
     if (r){
-        return r;
+        // return r;
     }
 
     return kfb_update(self);
