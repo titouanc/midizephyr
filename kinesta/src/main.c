@@ -41,10 +41,17 @@ void scan_slices_rgb()
             k_sleep(K_MSEC(250));
             touchpad_set_color(kfbs[i].secondary_touchpad, 0);
 
-            encoder_set_color(kfbs[i].encoder, colors[j]);
+            if (touchpad_is_touched(kfbs[i].primary_touchpad)){
+                touchpad_set_color(kfbs[i].primary_touchpad, COLOR_WHITE);
+            }
+
+            if (touchpad_is_touched(kfbs[i].secondary_touchpad)){
+                touchpad_set_color(kfbs[i].secondary_touchpad, COLOR_WHITE);
+            }
+
             k_sleep(K_MSEC(250));
-            encoder_set_color(kfbs[i].encoder, 0);
-            k_sleep(K_MSEC(250));
+            touchpad_set_color(kfbs[i].primary_touchpad, 0);
+            touchpad_set_color(kfbs[i].secondary_touchpad, 0);
         }
     }
 }
