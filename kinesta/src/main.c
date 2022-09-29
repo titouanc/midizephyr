@@ -58,6 +58,11 @@ void scan_slices_rgb()
 
 void autotest()
 {
+    for (int i=0; i<N_KFBS; i++){
+        LOG_INF("Initializing KFB %s", kfbs[i].name);
+        kfb_init(&kfbs[i]);
+    }
+
     while (true) {
         scan_slices_rgb();
     }
