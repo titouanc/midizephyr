@@ -130,29 +130,6 @@ midi_din_uart: &usart2 {
     pinctrl-names = "default";
 };
 
-&arduino_i2c {
-    encoder1: encoder@72 {
-        compatible = "duppa,i2cencoderv21";
-        label = "ENCODER1";
-        reg = <0x72>;
-        interrupt-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
-    };
-
-    encoder2: encoder@73 {
-        compatible = "duppa,i2cencoderv21";
-        label = "ENCODER2";
-        reg = <0x73>;
-        interrupt-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
-    };
-
-    encoder3: encoder@70 {
-        compatible = "duppa,i2cencoderv21";
-        label = "ENCODER3";
-        reg = <0x70>;
-        interrupt-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
-    };
-};
-
 // Second VL53L0A1 shield on I2C_2
 // SCL: PB10
 // SDA: PB11
@@ -160,6 +137,27 @@ midi_din_uart: &usart2 {
     status = "okay";
     pinctrl-0 = <&i2c2_scl_pb10 &i2c2_sda_pb11>;
     pinctrl-names = "default";
+
+    encoder1: encoder@72 {
+        compatible = "duppa,i2cencoderv21";
+        label = "ENCODER1";
+        reg = <0x72>;
+        interrupt-gpios = <&gpiof 15 GPIO_ACTIVE_LOW>;
+    };
+
+    encoder2: encoder@70 {
+        compatible = "duppa,i2cencoderv21";
+        label = "ENCODER2";
+        reg = <0x70>;
+        interrupt-gpios = <&gpiog 14 GPIO_ACTIVE_LOW>;
+    };
+
+    encoder3: encoder@73 {
+        compatible = "duppa,i2cencoderv21";
+        label = "ENCODER3";
+        reg = <0x73>;
+        interrupt-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
+    };
 
     expander3: stmpe1600@42 {
         compatible = "st,stmpe1600";
@@ -177,7 +175,6 @@ midi_din_uart: &usart2 {
         gpio-controller;
         #gpio-cells = <2>;
     };
-
     /* Center sensor soldered on the shield */
     vl53l0x_c2: vl53l0x@30 {
         compatible = "st,vl53l0x";
@@ -185,7 +182,6 @@ midi_din_uart: &usart2 {
         reg = <0x30>;
         xshut-gpios = <&expander3 15 0>;
     };
-
     /* Satellites optional sensors */
     vl53l0x_l2: vl53l0x@31 {
         compatible = "st,vl53l0x";
@@ -284,9 +280,9 @@ midi_din_uart: &usart2 {
             midi-cc-group = <0x10>;
 
             primary-touchpad = <&touchpad1>;
-            secondary-touchpad = <&touchpad4>;
+            secondary-touchpad = <&touchpad2>;
             encoder = <&encoder1>;
-            distance-sensor = <&vl53l0x_r>;
+            distance-sensor = <&vl53l0x_r2>;
         };
 
         slice2 {
@@ -294,8 +290,8 @@ midi_din_uart: &usart2 {
             compatible = "kinesta,functional-block";
             midi-cc-group = <0x20>;
 
-            primary-touchpad = <&touchpad2>;
-            secondary-touchpad = <&touchpad3>;
+            primary-touchpad = <&touchpad3>;
+            secondary-touchpad = <&touchpad4>;
             encoder = <&encoder2>;
             distance-sensor = <&vl53l0x_l>;
         };
@@ -308,7 +304,7 @@ midi_din_uart: &usart2 {
             primary-touchpad = <&touchpad5>;
             secondary-touchpad = <&touchpad6>;
             encoder = <&encoder3>;
-            distance-sensor = <&vl53l0x_l2>;
+            distance-sensor = <&vl53l0x_r>;
         };
     };
 };
