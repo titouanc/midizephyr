@@ -68,11 +68,37 @@ void autotest()
     }
 }
 
+/* On the first Kinesta SMD devboard, there is a schematic error where the MIDI
+ * UART Tx is wired to PD7 instead of PD5, but only PD5 can be used as UART2_TX.
+ * To circumvent the problem, we put a jumper between PD5 and PD7 on the Nucleo,
+ * and we set PD7 as input so that it doesn't interfere with the signal sent
+ * by PD5
+ * 
+ *  +---jumper---+
+ *  |            |
+ * PD7 [NUCLEO] PD5
+ *  |
+ *  +---kinesta--->MIDI OUT
+ */
+void setup_wiring_workaround()
+{
+    const struct device *dev = device_get_binding("GPIOD");
+    if (! dev){
+        LOG_ERR("Unable to open GPIOD");
+    } else {
+        gpio_pin_configure(dev, 7, GPIO_INPUT);
+    }
+}
+
 void main(void)
 {
-    autotest();
-
+    // autotest();
     int i;
+
+    // Problems with components on the first slice, so software disable them
+    kfbs[0].soft_disable = true;
+
+    setup_wiring_workaround();
 
     if (usb_enable(NULL) == 0){
         LOG_INF("USB enabled");
@@ -82,7 +108,6 @@ void main(void)
     }
 
     LOG_INF("Initializing %d KFB(s)", (int) N_KFBS);
-    // test_touchpads();
 
     for (i=0; i<N_KFBS; i++){
         LOG_INF("Initializing KFB %s", kfbs[i].name);
