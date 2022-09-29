@@ -186,6 +186,13 @@ int kfb_init(kinesta_functional_block *self)
 
 int kfb_update(kinesta_functional_block *self)
 {
+    if (self->soft_disable){
+        touchpad_set_color(self->primary_touchpad, 0);
+        touchpad_set_color(self->secondary_touchpad, 0);
+        encoder_set_color(self->encoder, 0);
+        return 0;
+    }
+
     int r = kfb_update_distance(self);
     if (r){
         return r;

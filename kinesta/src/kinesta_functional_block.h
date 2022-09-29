@@ -19,6 +19,8 @@ DT_FOREACH_STATUS_OKAY(kinesta_functional_block, KFB_FROM_DT)
 */
 
 typedef struct {
+    bool soft_disable;
+
     const char *name;
     const uint8_t midi_cc_group;
     const struct device *distance_sensor;
