@@ -163,14 +163,19 @@ static void kfb_encoder_changed(struct encoder_callback_t *callback, int event)
 
 int kfb_init(kinesta_functional_block *self)
 {
-    if (! device_is_ready(self->distance_sensor)){
-        LOG_ERR("Invalid device for distance sensor");
-        // return -1;
-    }
+    touchpad_set_color(self->primary_touchpad, 0);
+    touchpad_set_color(self->secondary_touchpad, 0);
 
     if (! device_is_ready(self->encoder)){
         LOG_ERR("Invalid device for encoder");
-        // return -1;
+        return -1;
+    }
+
+    encoder_set_color(self->encoder, 0);
+
+    if (! device_is_ready(self->distance_sensor)){
+        LOG_ERR("Invalid device for distance sensor");
+        return -1;
     }
 
     self->encoder_change.func = kfb_encoder_changed;
@@ -178,7 +183,7 @@ int kfb_init(kinesta_functional_block *self)
 
     int r = kfb_update_encoder(self, 0);
     if (r){
-        // return r;
+        return r;
     }
 
     return kfb_update(self);
