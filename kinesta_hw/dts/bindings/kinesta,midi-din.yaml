@@ -1,0 +1,21 @@
+# Copyright (c) 2022 Titouan Christophe
+# SPDX-License-Identifier: Apache-2.0
+
+description: Kinesta MIDI DIN5 connector with LEDs
+compatible: kinesta,midi-din
+
+include: base.yaml
+
+properties:
+    "#gpio-cells":
+        type: int
+        const: 1
+    uart:
+        type: phandle
+        required: true
+    rx-led-gpios:
+        type: phandle-array
+        required: true
+    tx-led-gpios:
+        type: phandle-array
+        required: true
