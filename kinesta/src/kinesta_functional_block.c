@@ -12,6 +12,16 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(kfb);
 
+#define TOF_SAMPLING_FREQ 30
+
+static kinesta_functional_block __kfbs__[] = {
+    DT_FOREACH_STATUS_OKAY(kinesta_functional_block, KFB_FROM_DT)
+};
+
+const size_t N_KFBS = ARRAY_SIZE(__kfbs__);
+
+kinesta_functional_block *kfbs = __kfbs__;
+
 static int kfb_measure_distance_cm(kinesta_functional_block *self, double *res)
 {
     int r = sensor_sample_fetch(self->tof);
@@ -161,27 +171,57 @@ static void kfb_encoder_changed(struct encoder_callback_t *callback, int event)
     kfb_update_encoder(self, event);
 }
 
+static void kfb_tof_data_ready(const struct device *tof, const struct sensor_trigger *trig)
+{
+    for (size_t i=0; i<N_KFBS; i++){
+        if (tof == kfbs[i].tof){
+            kfb_update_distance(&kfbs[i]);
+            return;
+        }
+    }
+}
+
 int kfb_init(kinesta_functional_block *self)
 {
+    int r;
     touchpad_set_color(self->primary_touchpad, 0);
     touchpad_set_color(self->secondary_touchpad, 0);
 
     if (! device_is_ready(self->encoder)){
-        LOG_ERR("Invalid device for encoder");
+        LOG_ERR("[%s] encoder is not ready", self->name);
         return -1;
     }
 
-    encoder_set_color(self->encoder, 0);
+    if (encoder_set_color(self->encoder, 0)){
+        LOG_ERR("[%s] Unable to light off the encoder", self->name);
+    }
 
     if (! device_is_ready(self->tof)){
-        LOG_ERR("Invalid device for ToF sensor");
+        LOG_ERR("[%s] ToF sensor is not ready", self->name);
         return -1;
+    }
+
+    const struct sensor_value freq = {.val1=TOF_SAMPLING_FREQ, .val2=0};
+    r = sensor_attr_set(self->tof, SENSOR_CHAN_DISTANCE, SENSOR_ATTR_SAMPLING_FREQUENCY, &freq);
+    if (r){
+        LOG_ERR("[%s] Unable to configure ToF sampling freq to %dHz", self->name, TOF_SAMPLING_FREQ);
+        return r;
+    }
+
+    const struct sensor_trigger trig = {
+        .chan = SENSOR_CHAN_DISTANCE,
+        .type = SENSOR_TRIG_DATA_READY,
+    };
+    r = sensor_trigger_set(self->tof, &trig, kfb_tof_data_ready);
+    if (r){
+        LOG_ERR("[%s] Unable to set ToF trigger", self->name);
+        return r;
     }
 
     self->encoder_change.func = kfb_encoder_changed;
     encoder_set_callback(self->encoder, &self->encoder_change);
 
-    int r = kfb_update_encoder(self, 0);
+    r = kfb_update_encoder(self, 0);
     if (r){
         return r;
     }
@@ -198,12 +238,7 @@ int kfb_update(kinesta_functional_block *self)
         return 0;
     }
 
-    int r = kfb_update_distance(self);
-    if (r){
-        return r;
-    }
-
-    r = kfb_update_primary_touchpad(self);
+    int r = kfb_update_primary_touchpad(self);
     if (r){
         return r;
     }

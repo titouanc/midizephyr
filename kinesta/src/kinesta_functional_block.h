@@ -44,6 +44,9 @@ typedef struct {
     bool is_frozen;
 } kinesta_functional_block;
 
+extern const size_t N_KFBS;
+extern kinesta_functional_block *kfbs;
+
 int kfb_init(kinesta_functional_block *self);
 
 int kfb_update(kinesta_functional_block *self);

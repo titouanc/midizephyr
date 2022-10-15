@@ -7,11 +7,6 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(app);
 
-#define N_KFBS ARRAY_SIZE(kfbs)
-static kinesta_functional_block kfbs[] = {
-    DT_FOREACH_STATUS_OKAY(kinesta_functional_block, KFB_FROM_DT)
-};
-
 void scan_slices_rgb()
 {
     color_t colors[] = {COLOR_RED, COLOR_GREEN, COLOR_BLUE};
