@@ -7,6 +7,8 @@
 typedef struct {
     bool soft_disable;
 
+    bool trigger_enabled;
+
     const char *name;
     const uint8_t midi_cc_group;
     const struct device *tof;

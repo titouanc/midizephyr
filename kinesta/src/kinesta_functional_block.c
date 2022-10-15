@@ -223,7 +223,9 @@ int kfb_init(kinesta_functional_block *self)
         .type = SENSOR_TRIG_DATA_READY,
     };
     r = sensor_trigger_set(self->tof, &trig, kfb_tof_data_ready);
-    if (r){
+    if (r == 0){
+        self->trigger_enabled = true;
+    } else if (r != -ENOTSUP){
         LOG_ERR("[%s] Unable to set ToF trigger", self->name);
         return r;
     }
@@ -246,6 +248,10 @@ int kfb_update(kinesta_functional_block *self)
         touchpad_set_color(self->secondary_touchpad, 0);
         encoder_set_color(self->encoder, 0);
         return 0;
+    }
+
+    if (! self->trigger_enabled){
+        kfb_update_distance(self);
     }
 
     int r = kfb_update_primary_touchpad(self);
