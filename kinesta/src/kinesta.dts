@@ -130,6 +130,22 @@ midi_din_uart: &usart2 {
     pinctrl-names = "default";
 };
 
+&i2c1 {
+    tof1: vl53l0x@30 {
+        compatible = "st,vl53l0x";
+        reg = <0x30>;
+        interrupt-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;
+        xshut-gpios = <&gpiob 0 GPIO_ACTIVE_HIGH>;
+    };
+
+    tof2: vl53l0x@31 {
+        compatible = "st,vl53l0x";
+        reg = <0x31>;
+        interrupt-gpios = <&gpiob 15 GPIO_ACTIVE_HIGH>;
+        xshut-gpios = <&gpioc 6 GPIO_ACTIVE_HIGH>;
+    };
+};
+
 // Second VL53L0A1 shield on I2C_2
 // SCL: PB10
 // SDA: PB11
@@ -156,41 +172,11 @@ midi_din_uart: &usart2 {
         interrupt-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
     };
 
-    expander3: stmpe1600@42 {
-        compatible = "st,stmpe1600";
-        label = "EXPANDER3";
-        reg = <0x42>;
-        ngpios = <16>;
-        gpio-controller;
-        #gpio-cells = <2>;
-    };
-    expander4: stmpe1600@43 {
-        compatible = "st,stmpe1600";
-        label = "EXPANDER4";
-        reg = <0x43>;
-        ngpios = <16>;
-        gpio-controller;
-        #gpio-cells = <2>;
-    };
-    /* Center sensor soldered on the shield */
-    vl53l0x_c2: vl53l0x@30 {
+    tof3: vl53l0x@32 {
         compatible = "st,vl53l0x";
-        label = "VL53L0X_C2";
-        reg = <0x30>;
-        xshut-gpios = <&expander3 15 0>;
-    };
-    /* Satellites optional sensors */
-    vl53l0x_l2: vl53l0x@31 {
-        compatible = "st,vl53l0x";
-        label = "VL53L0X_L2";
-        reg = <0x31>;
-        xshut-gpios = <&expander4 14 0>;
-    };
-    vl53l0x_r2: vl53l0x@32 {
-        compatible = "st,vl53l0x";
-        label = "VL53L0X_R2";
         reg = <0x32>;
-        xshut-gpios = <&expander4 15 0>;
+        interrupt-gpios = <&gpiog 0 GPIO_ACTIVE_HIGH>;
+        xshut-gpios = <&gpiod 1 GPIO_ACTIVE_HIGH>;
     };
 };
 
@@ -278,7 +264,7 @@ midi_din_uart: &usart2 {
             primary-touchpad = <&touchpad1>;
             secondary-touchpad = <&touchpad2>;
             encoder = <&encoder1>;
-            distance-sensor = <&vl53l0x_r2>;
+            distance-sensor = <&tof1>;
         };
 
         slice2 {
@@ -288,7 +274,7 @@ midi_din_uart: &usart2 {
             primary-touchpad = <&touchpad3>;
             secondary-touchpad = <&touchpad4>;
             encoder = <&encoder2>;
-            distance-sensor = <&vl53l0x_l>;
+            distance-sensor = <&tof2>;
         };
 
         slice3 {
@@ -298,7 +284,7 @@ midi_din_uart: &usart2 {
             primary-touchpad = <&touchpad5>;
             secondary-touchpad = <&touchpad6>;
             encoder = <&encoder3>;
-            distance-sensor = <&vl53l0x_r>;
+            distance-sensor = <&tof3>;
         };
     };
 };
