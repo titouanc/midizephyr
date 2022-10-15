@@ -14,13 +14,13 @@ LOG_MODULE_REGISTER(kfb);
 
 static int kfb_measure_distance_cm(kinesta_functional_block *self, double *res)
 {
-    int r = sensor_sample_fetch(self->distance_sensor);
+    int r = sensor_sample_fetch(self->tof);
     if (r){
         return r;
     }
     
     struct sensor_value distance_value;
-    r = sensor_channel_get(self->distance_sensor, SENSOR_CHAN_DISTANCE, &distance_value);
+    r = sensor_channel_get(self->tof, SENSOR_CHAN_DISTANCE, &distance_value);
     if (r){
         return r;
     }
@@ -173,8 +173,8 @@ int kfb_init(kinesta_functional_block *self)
 
     encoder_set_color(self->encoder, 0);
 
-    if (! device_is_ready(self->distance_sensor)){
-        LOG_ERR("Invalid device for distance sensor");
+    if (! device_is_ready(self->tof)){
+        LOG_ERR("Invalid device for ToF sensor");
         return -1;
     }
 
