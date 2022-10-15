@@ -59,7 +59,7 @@ struct encoder_data {
 
 static inline int encoder_i2c_read(const struct device *dev, uint8_t reg, uint8_t *data, size_t size)
 {
-    const struct encoder_config const *config = dev->config;
+    const struct encoder_config *const config = dev->config;
     int ret = i2c_burst_read(config->i2c.bus, config->i2c.addr, reg, data, size);
     if (ret){
         LOG_ERR("[%s] I2C read of register 0x%02X with size %d failed: %d",
@@ -70,7 +70,7 @@ static inline int encoder_i2c_read(const struct device *dev, uint8_t reg, uint8_
 
 static inline int encoder_i2c_write(const struct device *dev, uint8_t reg, const uint8_t *data, size_t size)
 {
-    const struct encoder_config const *config = dev->config;
+    const struct encoder_config *const config = dev->config;
     int ret = i2c_burst_write(config->i2c.bus, config->i2c.addr, reg, data, size);
     if (ret){
         LOG_ERR("[%s] I2C write of register 0x%02X with size %d failed: %d",
