@@ -186,105 +186,110 @@ midi_din_uart: &usart2 {
 };
 
 / {
-    kinesta {
-        touchpad1: touchpad_1 {
-            compatible = "kinesta,rgb-touchpad-pwm";
-            // PD11
-            touch-gpios = <&gpiod 11 GPIO_ACTIVE_HIGH>;
+    midi_din {
+        compatible = "kinesta,midi-din";
+        uart = <&usart2>;
+        rx-led-gpios = <&gpiod 4 GPIO_ACTIVE_HIGH>;
+        tx-led-gpios = <&gpiod 3 GPIO_ACTIVE_HIGH>;
+    };
 
-            // Red:   PE11 (D5)
-            // Green: PE13 (D3)
-            // Blue:  PE9 (D6)
-            pwm-names = "red", "green", "blue";
-            pwms = <&pwm1 2 0 PWM_POLARITY_NORMAL>,
-                   <&pwm1 3 0 PWM_POLARITY_NORMAL>,
-                   <&pwm1 1 0 PWM_POLARITY_NORMAL>;
-        };
+    touchpad1: touchpad_1 {
+        compatible = "kinesta,rgb-touchpad-pwm";
+        // PD11
+        touch-gpios = <&gpiod 11 GPIO_ACTIVE_HIGH>;
 
-        touchpad2: touchpad_2 {
-            compatible = "kinesta,rgb-touchpad-pwm";
-            // PE2
-            touch-gpios = <&gpioe 2 GPIO_ACTIVE_HIGH>;
+        // Red:   PE11 (D5)
+        // Green: PE13 (D3)
+        // Blue:  PE9 (D6)
+        pwm-names = "red", "green", "blue";
+        pwms = <&pwm1 2 0 PWM_POLARITY_NORMAL>,
+               <&pwm1 3 0 PWM_POLARITY_NORMAL>,
+               <&pwm1 1 0 PWM_POLARITY_NORMAL>;
+    };
 
-            // Red:   PA6 (D12)
-            // Green: PD14 (D10)
-            // Blue:  PD15 (D9)
-            pwm-names = "red", "green", "blue";
-            pwms = <&pwm3 1 0 PWM_POLARITY_NORMAL>,
-                   <&pwm4 3 0 PWM_POLARITY_NORMAL>,
-                   <&pwm4 4 0 PWM_POLARITY_NORMAL>;
-        };
+    touchpad2: touchpad_2 {
+        compatible = "kinesta,rgb-touchpad-pwm";
+        // PE2
+        touch-gpios = <&gpioe 2 GPIO_ACTIVE_HIGH>;
 
-        touchpad3: touchpad_3 {
-            compatible = "kinesta,rgb-touchpad-pwm";
-            // PF4
-            touch-gpios = <&gpiof 4 GPIO_ACTIVE_HIGH>;
+        // Red:   PA6 (D12)
+        // Green: PD14 (D10)
+        // Blue:  PD15 (D9)
+        pwm-names = "red", "green", "blue";
+        pwms = <&pwm3 1 0 PWM_POLARITY_NORMAL>,
+               <&pwm4 3 0 PWM_POLARITY_NORMAL>,
+               <&pwm4 4 0 PWM_POLARITY_NORMAL>;
+    };
 
-            pwm-names = "red", "green", "blue";
-            pwms = <&pwm9 1 0 PWM_POLARITY_NORMAL>,
-                   <&pwm1 4 0 PWM_POLARITY_NORMAL>,
-                   <&pwm9 2 0 PWM_POLARITY_NORMAL>;
-        };
+    touchpad3: touchpad_3 {
+        compatible = "kinesta,rgb-touchpad-pwm";
+        // PF4
+        touch-gpios = <&gpiof 4 GPIO_ACTIVE_HIGH>;
 
-        touchpad4: touchpad_4 {
-            compatible = "kinesta,rgb-touchpad-pwm";
-            // PB2
-            touch-gpios = <&gpiob 2 GPIO_ACTIVE_HIGH>;
+        pwm-names = "red", "green", "blue";
+        pwms = <&pwm9 1 0 PWM_POLARITY_NORMAL>,
+               <&pwm1 4 0 PWM_POLARITY_NORMAL>,
+               <&pwm9 2 0 PWM_POLARITY_NORMAL>;
+    };
 
-            pwm-names = "red", "green", "blue";
-            pwms = <&pwm4 1 0 PWM_POLARITY_NORMAL>,
-                   <&pwm2 1 0 PWM_POLARITY_NORMAL>,
-                   <&pwm4 2 0 PWM_POLARITY_NORMAL>;
-        };
+    touchpad4: touchpad_4 {
+        compatible = "kinesta,rgb-touchpad-pwm";
+        // PB2
+        touch-gpios = <&gpiob 2 GPIO_ACTIVE_HIGH>;
 
-        touchpad5: touchpad_5 {
-            compatible = "kinesta,rgb-touchpad-pwm";
+        pwm-names = "red", "green", "blue";
+        pwms = <&pwm4 1 0 PWM_POLARITY_NORMAL>,
+               <&pwm2 1 0 PWM_POLARITY_NORMAL>,
+               <&pwm4 2 0 PWM_POLARITY_NORMAL>;
+    };
 
-            touch-gpios  = <&gpioc 10 GPIO_ACTIVE_HIGH>;
-            pwm-names = "red", "green", "blue";
-            pwms = <&pwm3 3 0 PWM_POLARITY_NORMAL>,
-                   <&pwm3 4 0 PWM_POLARITY_NORMAL>,
-                   <&pwm2 4 0 PWM_POLARITY_NORMAL>;
-        };
+    touchpad5: touchpad_5 {
+        compatible = "kinesta,rgb-touchpad-pwm";
 
-        touchpad6: touchpad_6 {
-            compatible = "kinesta,rgb-touchpad-pwm";
+        touch-gpios  = <&gpioc 10 GPIO_ACTIVE_HIGH>;
+        pwm-names = "red", "green", "blue";
+        pwms = <&pwm3 3 0 PWM_POLARITY_NORMAL>,
+               <&pwm3 4 0 PWM_POLARITY_NORMAL>,
+               <&pwm2 4 0 PWM_POLARITY_NORMAL>;
+    };
 
-            touch-gpios  = <&gpiog 1 GPIO_ACTIVE_HIGH>;
-            pwm-names = "red", "green", "blue";
-            pwms = <&pwm11 1 0 PWM_POLARITY_NORMAL>,
-                   <&pwm14 1 0 PWM_POLARITY_NORMAL>,
-                   <&pwm13 1 0 PWM_POLARITY_NORMAL>;
-        };
+    touchpad6: touchpad_6 {
+        compatible = "kinesta,rgb-touchpad-pwm";
 
-        slice1 {
-            compatible = "kinesta,functional-block";
-            midi-cc-group = <0x10>;
+        touch-gpios  = <&gpiog 1 GPIO_ACTIVE_HIGH>;
+        pwm-names = "red", "green", "blue";
+        pwms = <&pwm11 1 0 PWM_POLARITY_NORMAL>,
+               <&pwm14 1 0 PWM_POLARITY_NORMAL>,
+               <&pwm13 1 0 PWM_POLARITY_NORMAL>;
+    };
 
-            primary-touchpad = <&touchpad1>;
-            secondary-touchpad = <&touchpad2>;
-            encoder = <&encoder1>;
-            distance-sensor = <&tof1>;
-        };
+    slice1 {
+        compatible = "kinesta,functional-block";
+        midi-cc-group = <0x10>;
 
-        slice2 {
-            compatible = "kinesta,functional-block";
-            midi-cc-group = <0x20>;
+        primary-touchpad = <&touchpad1>;
+        secondary-touchpad = <&touchpad2>;
+        encoder = <&encoder1>;
+        distance-sensor = <&tof1>;
+    };
 
-            primary-touchpad = <&touchpad3>;
-            secondary-touchpad = <&touchpad4>;
-            encoder = <&encoder2>;
-            distance-sensor = <&tof2>;
-        };
+    slice2 {
+        compatible = "kinesta,functional-block";
+        midi-cc-group = <0x20>;
 
-        slice3 {
-            compatible = "kinesta,functional-block";
-            midi-cc-group = <0x30>;
+        primary-touchpad = <&touchpad3>;
+        secondary-touchpad = <&touchpad4>;
+        encoder = <&encoder2>;
+        distance-sensor = <&tof2>;
+    };
 
-            primary-touchpad = <&touchpad5>;
-            secondary-touchpad = <&touchpad6>;
-            encoder = <&encoder3>;
-            distance-sensor = <&tof3>;
-        };
+    slice3 {
+        compatible = "kinesta,functional-block";
+        midi-cc-group = <0x30>;
+
+        primary-touchpad = <&touchpad5>;
+        secondary-touchpad = <&touchpad6>;
+        encoder = <&encoder3>;
+        distance-sensor = <&tof3>;
     };
 };
