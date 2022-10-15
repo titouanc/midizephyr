@@ -129,18 +129,32 @@
 };
 
 &i2c1 {
+    expander1: stmpe1600@42 {
+        compatible = "st,stmpe1600";
+        reg = <0x42>;
+        ngpios = <16>;
+        gpio-controller;
+        #gpio-cells = <2>;
+    };
+
+    vl53l0x@3a {
+        compatible = "st,vl53l0x";
+        reg = <0x3a>;
+        xshut-gpios = <&expander1 15 0>;
+    };
+
     tof1: vl53l0x@30 {
         compatible = "st,vl53l0x";
         reg = <0x30>;
-        interrupt-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;
-        xshut-gpios = <&gpiob 0 GPIO_ACTIVE_HIGH>;
+        interrupt-gpios = <&gpiog 0 GPIO_ACTIVE_HIGH>;
+        xshut-gpios = <&gpiod 1 GPIO_ACTIVE_HIGH>;
     };
 
     tof2: vl53l0x@31 {
         compatible = "st,vl53l0x";
         reg = <0x31>;
-        interrupt-gpios = <&gpiob 15 GPIO_ACTIVE_HIGH>;
-        xshut-gpios = <&gpioc 6 GPIO_ACTIVE_HIGH>;
+        // interrupt-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;
+        xshut-gpios = <&gpiob 0 GPIO_ACTIVE_HIGH>;
     };
 };
 
@@ -170,11 +184,25 @@
         interrupt-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
     };
 
+    expander2: stmpe1600@42 {
+        compatible = "st,stmpe1600";
+        reg = <0x42>;
+        ngpios = <16>;
+        gpio-controller;
+        #gpio-cells = <2>;
+    };
+
+    vl53l0x@3a {
+        compatible = "st,vl53l0x";
+        reg = <0x3a>;
+        xshut-gpios = <&expander2 15 0>;
+    };
+
     tof3: vl53l0x@32 {
         compatible = "st,vl53l0x";
         reg = <0x32>;
-        interrupt-gpios = <&gpiog 0 GPIO_ACTIVE_HIGH>;
-        xshut-gpios = <&gpiod 1 GPIO_ACTIVE_HIGH>;
+        // interrupt-gpios = <&gpiob 15 GPIO_ACTIVE_HIGH>;
+        xshut-gpios = <&gpioc 6 GPIO_ACTIVE_HIGH>;
     };
 };
 
