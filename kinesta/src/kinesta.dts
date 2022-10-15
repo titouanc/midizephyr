@@ -140,21 +140,18 @@ midi_din_uart: &usart2 {
 
     encoder1: encoder@72 {
         compatible = "duppa,i2cencoderv21";
-        label = "ENCODER1";
         reg = <0x72>;
         interrupt-gpios = <&gpiof 15 GPIO_ACTIVE_LOW>;
     };
 
     encoder2: encoder@70 {
         compatible = "duppa,i2cencoderv21";
-        label = "ENCODER2";
         reg = <0x70>;
         interrupt-gpios = <&gpiog 14 GPIO_ACTIVE_LOW>;
     };
 
     encoder3: encoder@73 {
         compatible = "duppa,i2cencoderv21";
-        label = "ENCODER3";
         reg = <0x73>;
         interrupt-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
     };
@@ -275,7 +272,6 @@ midi_din_uart: &usart2 {
         };
 
         slice1 {
-            label = "SLICE1";
             compatible = "kinesta,functional-block";
             midi-cc-group = <0x10>;
 
@@ -286,7 +282,6 @@ midi_din_uart: &usart2 {
         };
 
         slice2 {
-            label = "SLICE2";
             compatible = "kinesta,functional-block";
             midi-cc-group = <0x20>;
 
@@ -297,7 +292,6 @@ midi_din_uart: &usart2 {
         };
 
         slice3 {
-            label = "SLICE3";
             compatible = "kinesta,functional-block";
             midi-cc-group = <0x30>;
 

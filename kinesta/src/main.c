@@ -9,7 +9,7 @@ LOG_MODULE_REGISTER(app);
 
 #define KFB_FROM_DT(inst) \
     {\
-        .name=DT_PROP(inst, label),\
+        .name=DT_NODE_FULL_NAME(inst),\
         .midi_cc_group=DT_PROP(inst, midi_cc_group),\
         .distance_sensor=DEVICE_DT_GET(DT_PROP(inst, distance_sensor)),\
         .primary_touchpad=DEVICE_DT_GET(DT_PROP(inst, primary_touchpad)),\
