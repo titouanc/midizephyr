@@ -52,3 +52,11 @@ void kinesta_midi_out(const uint8_t midi_pkt[3])
         usb_midi_write(USB_MIDI_SENSORS_JACK_ID, midi_pkt);
     }
 }
+
+void kinesta_midi_init()
+{
+    for (size_t i=0; i<N_MIDI_DINS; i++){
+        gpio_pin_configure_dt(&midi_dins[i].tx_led, GPIO_OUTPUT);
+        gpio_pin_configure_dt(&midi_dins[i].rx_led, GPIO_OUTPUT);
+    }
+}

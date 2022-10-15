@@ -79,9 +79,10 @@ void main(void)
 {
     // autotest();
     int i;
+    kinesta_midi_init();
 
     // Problems with components on the first slice, so software disable them
-    kfbs[0].soft_disable = true;
+    // kfbs[0].soft_disable = true;
 
     setup_wiring_workaround();
 
