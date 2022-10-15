@@ -1,10 +1,10 @@
-#include <zephyr.h>
-#include <usb/usb_device.h>
+#include <zephyr/kernel.h>
+#include <zephyr/usb/usb_device.h>
 
 #include "touchpad.h"
 #include "kinesta_functional_block.h"
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(app);
 
 #define KFB_FROM_DT(inst) \

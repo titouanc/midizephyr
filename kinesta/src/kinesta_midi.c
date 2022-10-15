@@ -2,7 +2,7 @@
 #include "config.h"
 #include "usb_midi.h"
 
-#include <drivers/uart.h>
+#include <zephyr/drivers/uart.h>
 
 bool kinesta_midi_usb_enable = true;
 bool kinesta_midi_din_enable = true;

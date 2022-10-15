@@ -1,7 +1,7 @@
 #include "touchpad.h"
 
-#include <drivers/gpio.h>
-#include <logging/log.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(touchpad_gpio);
 
 #define DT_DRV_COMPAT kinesta_rgb_touchpad_gpio

@@ -9,8 +9,8 @@
 #ifndef ZEPHYR_INCLUDE_USB_CLASS_USB_MIDI_H_
 #define ZEPHYR_INCLUDE_USB_CLASS_USB_MIDI_H_
 
-#include <zephyr.h>
-#include <usb/class/usb_audio.h>
+#include <zephyr/kernel.h>
+#include <zephyr/usb/class/usb_audio.h>
 
 #define MIDI_BULK_SIZE 64
 

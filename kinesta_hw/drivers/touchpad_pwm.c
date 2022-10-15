@@ -1,7 +1,7 @@
 #include "touchpad.h"
 
-#include <drivers/pwm.h>
-#include <logging/log.h>
+#include <zephyr/drivers/pwm.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(touchpad_pwm);
 
 #define DT_DRV_COMPAT kinesta_rgb_touchpad_pwm

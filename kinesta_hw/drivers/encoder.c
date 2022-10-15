@@ -1,10 +1,10 @@
 #include "encoder.h"
 
-#include <drivers/i2c.h>
-#include <drivers/gpio.h>
-#include <sys/byteorder.h>
+#include <zephyr/drivers/i2c.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/sys/byteorder.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(rgb_encoder);
 
 #define DT_DRV_COMPAT duppa_i2cencoderv21

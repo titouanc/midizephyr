@@ -1,7 +1,7 @@
 #ifndef ENCODER_H
 #define ENCODER_H
 
-#include <device.h>
+#include <zephyr/device.h>
 #include "color.h"
 
 #define ENCODER_EVT_PRESS         (1 << 0)

@@ -2,15 +2,15 @@
  * See https://www.usb.org/document-library/usb-midi-devices-10
  */
 
-#include <kernel.h>
-#include <sys/byteorder.h>
-#include <sys/ring_buffer.h>
-#include <usb/usb_ch9.h>
-#include <usb/usb_device.h>
+#include <zephyr/kernel.h>
+#include <zephyr/sys/byteorder.h>
+#include <zephyr/sys/ring_buffer.h>
+#include <zephyr/usb/usb_ch9.h>
+#include <zephyr/usb/usb_device.h>
 
 #include "usb_midi.h"
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(usb_midi, CONFIG_USB_MIDI_LOG_LEVEL);
 
 /*             

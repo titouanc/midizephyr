@@ -4,12 +4,12 @@
 #include "kinesta_midi.h"
 #include "lookup.h"
 
-#include <zephyr.h>
-#include <device.h>
-#include <devicetree.h>
-#include <drivers/sensor.h>
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/sensor.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(kfb);
 
 static int kfb_measure_distance_cm(kinesta_functional_block *self, double *res)
