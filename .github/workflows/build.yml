@@ -14,12 +14,24 @@ env:
   projects: '["kinesta"]'
 
 jobs:
+  discover:
+    name: Discover projects to build
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+    - run: echo '::set-output name=matrix::["kinesta"]'
+      id: set-matrix
+
   build:
     name: Build
     runs-on: ubuntu-latest
+    needs:
+    - discover
     strategy:
       matrix:
-        target: ${{ fromJson(env.projects) }}
+        target: ${{ fromJson(needs.discover.outputs.matrix) }}
 
     steps:
     - name: Install system dependencies
@@ -75,14 +87,16 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: github.event_name == 'release' && github.event.action == 'created'
-    needs: [ build ]
-
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    needs:
+    - discover
+    - build
 
     strategy:
       matrix:
-        target: ${{ fromJson(env.projects) }}
+        target: ${{ fromJson(needs.discover.outputs.matrix) }}
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     steps:
     - id: get_release
