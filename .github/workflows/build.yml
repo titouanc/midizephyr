@@ -10,13 +10,16 @@ on:
   release:
     types: [created]
 
+env:
+  projects: '["kinesta"]'
+
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [kinesta]
+        target: ${{ fromJson(env.projects) }}
 
     steps:
     - name: Install system dependencies
@@ -79,7 +82,7 @@ jobs:
 
     strategy:
       matrix:
-        target: [midizephyr, kinesta, volcadrum]
+        target: ${{ fromJson(env.projects) }}
     
     steps:
     - id: get_release
