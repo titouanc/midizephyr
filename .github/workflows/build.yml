@@ -100,7 +100,7 @@ jobs:
     
     steps:
     - id: get_release
-      uses: bruceadams/get-release@v1.3.0
+      uses: bruceadams/get-release@v1.3.1
 
     - uses: actions/download-artifact@v3
       with:
