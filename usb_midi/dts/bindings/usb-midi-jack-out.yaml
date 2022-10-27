@@ -1,0 +1,21 @@
+# Copyright (c) 2022 Titouan Christophe
+# SPDX-License-Identifier: Apache-2.0
+
+description: USB-MIDI output jack (data flows out of the USB-MIDI subsystem)
+
+compatible: usb-midi-jack-out
+
+include: [base.yaml]
+
+properties:
+    reg:
+        required: true
+        description: Jack ID
+
+    jack-embedded:
+        type: boolean
+        required: false
+
+    input-jacks:
+        type: phandles
+        required: true

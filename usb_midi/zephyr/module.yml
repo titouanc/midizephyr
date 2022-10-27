@@ -1,6 +1,10 @@
-# Copyright (c) 2021 Titouan Christophe
+# Copyright (c) 2022 Titouan Christophe
 # SPDX-License-Identifier: Apache-2.0
 
+name: usb_midi
+
 build:
-  cmake: zephyr
-  kconfig: zephyr/Kconfig
+  cmake: .
+  kconfig: Kconfig
+  settings:
+    dts_root: .

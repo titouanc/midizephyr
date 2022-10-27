@@ -1,0 +1,19 @@
+&zephyr_udc0 {
+	qsd {};
+
+	midi_in: midi-in {
+		compatible = "usb-midi-input";
+	};
+
+	midi_out: midi-out {
+		compatible = "usb-midi-output";
+	};
+
+	midi_in2: midi-in2 {
+		compatible = "usb-midi-input";
+	};
+
+	midi_out2: midi-out2 {
+		compatible = "usb-midi-output";
+	};
+};

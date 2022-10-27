@@ -41,6 +41,7 @@ static void kinesta_midi_din_transmit(struct kinesta_midi_din *self, const uint8
 }
 
 static bool kinesta_midi_usb_enabled = true;
+const struct device *kinesta_sensors_midi = DEVICE_DT_GET(DT_NODELABEL(kinesta_sensors));
 
 void kinesta_midi_out(const uint8_t midi_pkt[3])
 {
@@ -49,7 +50,7 @@ void kinesta_midi_out(const uint8_t midi_pkt[3])
     }
 
     if (kinesta_midi_usb_enabled) {
-        usb_midi_write(USB_MIDI_SENSORS_JACK_ID, midi_pkt);
+        usb_midi_write(kinesta_sensors_midi, midi_pkt, 3);
     }
 }
 

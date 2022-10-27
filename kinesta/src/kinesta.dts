@@ -319,3 +319,13 @@
         distance-sensor = <&tof3>;
     };
 };
+
+&zephyr_udc0 {
+	kinesta_sensors: kinesta-sensors {
+		compatible = "usb-midi-input";
+	};
+
+	kinesta_clock: kinesta-clock {
+		compatible = "usb-midi-output";
+	};
+};
