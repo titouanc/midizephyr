@@ -1,74 +1,41 @@
 #include <stdio.h>
 
-#include <zephyr/device.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/usb/usb_device.h>
 #include <usb_midi.h>
 
-#define SW0_NODE	DT_ALIAS(sw0)
-#if !DT_NODE_HAS_STATUS(SW0_NODE, okay)
-#error "Unsupported board: sw0 devicetree alias is not defined"
-#endif
-static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
-static struct gpio_callback button_cb_data;
+LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
-struct midi_loopback {
-	const struct device *input;
-	const struct device *output;
-};
+const struct device *midi_in = DEVICE_DT_GET(DT_NODELABEL(midi_in));
+const struct device *midi_out = DEVICE_DT_GET(DT_NODELABEL(midi_out));
 
-static int loopback_forward(const struct midi_loopback *lb)
+void send_to_midi_in(const struct device *from, const uint8_t *data, size_t len)
 {
-	int r, res = 0;
-	uint8_t buf[16];
-
-	r = usb_midi_read(lb->output, buf, 1, K_NO_WAIT);
-	if (r <= 0){
-		return 0;
-	}
-
-	size_t len = midi_datasize(buf[0] >> 4);
-	__ASSERT((len > 0 && len < sizeof(buf)), "Unknown MIDI message length");
-
-	r = usb_midi_read(lb->output, &buf[1], len, K_NO_WAIT);
-	if (r != len){
-		printf("Not enough data to forward\n");
-		return 0;
-	}
-
-	printf("Forwarding %dB %s -> %s\n", len+1, lb->output->name, lb->input->name);
-	return usb_midi_write(lb->input, buf, len+1);
+	usb_midi_write(midi_in, data, len);
 }
-
-static const struct midi_loopback loopbacks[] = {
-	{
-		.input = DEVICE_DT_GET(DT_NODELABEL(midi_in)),
-		.output = DEVICE_DT_GET(DT_NODELABEL(midi_out2)),
-	},
-	{
-		.input = DEVICE_DT_GET(DT_NODELABEL(midi_in2)),
-		.output = DEVICE_DT_GET(DT_NODELABEL(midi_out)),
-	},
-};
 
 void main()
 {
-	size_t i;
-	int r;
-	if (usb_enable(NULL) == 0){
-		printf("USB enabled\n");
-	} else {
-		printf("Cannot enable USB !\n");
+	if (! device_is_ready(midi_in)){
+		LOG_ERR("midi in is not ready");
 	}
 
-	while (1) {
-		r = 0;
-		for (i=0; i<ARRAY_SIZE(loopbacks); i++){
-			r += loopback_forward(&loopbacks[i]);
-		}
-		if (r == 0){
-			k_sleep(K_MSEC(10));
-		}
+	if (! device_is_ready(midi_out)){
+		LOG_ERR("midi out is not ready");
+	}
+
+	usb_midi_register(midi_out, send_to_midi_in);
+
+	int ret = usb_enable(NULL);
+	if (ret != 0) {
+		LOG_ERR("Failed to enable USB");
+		return;
+	}
+
+	LOG_INF("USB enabled");
+
+	while (1){
+		k_sleep(K_MSEC(1000));
 	}
 }

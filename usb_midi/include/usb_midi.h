@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
+#include <zephyr/usb/class/usb_audio.h>
 
 #define MIDI_CMD_NOTE_OFF       0x8
 #define MIDI_CMD_NOTE_ON        0x9
@@ -31,6 +32,8 @@
 #define MIDI_CONTROL_CHANGE(chan, cc, value) \
 	MIDI_COMMAND_3B(MIDI_CMD_CONTROL_CHANGE, chan, cc, value)
 
+typedef void (*usb_midi_rx_callback)(const struct device *dev, const uint8_t *data, size_t len);
+
 static inline size_t midi_datasize(const uint8_t cmd)
 {
 	switch (cmd) {
@@ -48,10 +51,8 @@ static inline size_t midi_datasize(const uint8_t cmd)
 	}
 }
 
-int usb_midi_write(const struct device *dev, const uint8_t *buf, size_t size);
+int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len);
 
-int usb_midi_read(const struct device *dev, uint8_t *buf, size_t size, k_timeout_t timeout);
-
-enum usb_dc_status_code usb_midi_status();
+int usb_midi_register(const struct device *dev, usb_midi_rx_callback cb);
 
 #endif

@@ -51,21 +51,6 @@
 #define CIN_PITCH_BEND     0xE
 #define CIN_SYSTEM_COMMON  0xF
 
-struct usb_midi_if_descriptor {
-    struct usb_if_descriptor std_audiocontrol;
-    struct {
-	uint8_t bLength;
-	uint8_t bDescriptorType;
-	uint8_t bDescriptorSubtype;
-	uint16_t bcdADC;
-	uint16_t wTotalLength;
-	uint8_t bInCollection;
-	uint8_t baInterfaceNr;
-    } __packed cs_audiocontrol;
-    struct usb_if_descriptor std_midistreaming;
-    uint8_t cs_midistreaming[];
-} __packed;
-
 #define N_ELEMS(...) sizeof((uint8_t[]) {__VA_ARGS__})
 
 #define USB_MIDI_TO_HOST_ENDPOINT_ID   0x81
