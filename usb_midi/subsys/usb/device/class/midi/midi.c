@@ -311,6 +311,9 @@ int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len)
 	}
 
 	packet = net_buf_alloc(&buf_pool, K_NO_WAIT);
+	if (packet == NULL) {
+		return -ENOMEM;
+	}
 
 	read = 0;
 	for (written=0; written<packet->size && read<len; written+=4) {
