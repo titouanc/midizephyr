@@ -98,10 +98,13 @@ static void usb_midi_configure_interface(struct usb_desc_header *head, uint8_t b
 
 }
 
+static enum usb_dc_status_code current_usb_status = USB_DC_UNKNOWN;
+
 static void usb_midi_status_callback(struct usb_cfg_data *cfg, enum usb_dc_status_code status,
 				     const uint8_t *param)
 {
 	ARG_UNUSED(cfg);
+	current_usb_status = status;
 	switch (status) {
 	case USB_DC_ERROR:
 		LOG_DBG("USB error reported by the controller");
@@ -211,21 +214,18 @@ LISTIFY(MIDI_OUTPUT_DEVICE_COUNT, DEFINE_USB_MIDI_OUTPUT_DEVICE, ())
 #define DEVICE_DT_GET_DT_INST(index, compat) DEVICE_DT_GET(DT_INST(index, compat))
 const struct device *outputs[] = {LISTIFY(MIDI_OUTPUT_DEVICE_COUNT, DEVICE_DT_GET_DT_INST, (,), COMPAT_MIDI_OUTPUT)};
 
-static const int CIN_DATASIZE[16] = {-1, -1, 2, 3, 3, 1, 2, 3, 3, 3, 3, 3, 2, 2, 3, 1};
+NET_BUF_POOL_FIXED_DEFINE(buf_pool, 10, USB_MIDI_BULK_SIZE, 4, NULL);
 
-static inline void usb_midi_dispatch(const struct device *dev, uint8_t *packet)
-{
-	struct usb_midi_io_data *drv_data = (struct usb_midi_io_data *) dev->data;
-	if (drv_data && drv_data->callback){
-		drv_data->callback(dev, &packet[1], CIN_DATASIZE[packet[0] & 0x0f]);
-	}
-}
+static const int CIN_DATASIZE[16] = {-1, -1, 2, 3, 3, 1, 2, 3, 3, 3, 3, 3, 2, 2, 3, 1};
 
 static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 {
 	uint32_t read = 0;
+	size_t len[MIDI_OUTPUT_DEVICE_COUNT] = {0};
+	struct net_buf *per_dev[MIDI_OUTPUT_DEVICE_COUNT] = {NULL};
+
 	uint8_t buf[USB_MIDI_BULK_SIZE];
-	int r = usb_ep_read_wait(USB_MIDI_FROM_HOST_ENDPOINT_ID, buf, sizeof(buf), &read);
+	int r = usb_read(USB_MIDI_FROM_HOST_ENDPOINT_ID, buf, sizeof(buf), &read);
 	if (r){
 		LOG_ERR("USB read error %d", r);
 		return;
@@ -233,18 +233,30 @@ static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 
 	__ASSERT(read % 4 == 0, "Unaligned USB read");
 
-	LOG_DBG("READ %dB from host:", read);
+	LOG_DBG("Rx %dB from host", read);
 	for (int i=0; i<read; i+=4){
 		uint8_t cable_number = buf[i] >> 4;
+		uint8_t datasize = CIN_DATASIZE[buf[i] & 0x0f];
 		if (cable_number > MIDI_OUTPUT_DEVICE_COUNT){
 			continue;
 		}
-		usb_midi_dispatch(outputs[cable_number], &buf[i]);
+		if (per_dev[cable_number] == NULL){
+			per_dev[cable_number] = net_buf_alloc(&buf_pool, K_NO_WAIT);
+		}
+
+		LOG_DBG("CIN=%d CN=%d | %02X %02X %02X", buf[i] & 0x0f, cable_number, buf[i+1], buf[i+2], buf[i+3]);
+		memcpy(&per_dev[cable_number]->data[len[cable_number]], &buf[i+1], datasize);
+		len[cable_number] += datasize;
 	}
 
-	r = usb_ep_read_continue(USB_MIDI_FROM_HOST_ENDPOINT_ID);
-	if (r){
-		LOG_ERR("Unable to pursue reading from host: %d", r);
+	for (int i=0; i<MIDI_OUTPUT_DEVICE_COUNT; i++){
+		if (len[i]){
+			const struct device *dev = outputs[i];
+			struct usb_midi_io_data *drv_data = (struct usb_midi_io_data *) dev->data;
+			if (drv_data && drv_data->callback){
+				drv_data->callback(dev, per_dev[i], len[i]);
+			}
+		}
 	}
 }
 
@@ -258,40 +270,71 @@ int usb_midi_register(const struct device *dev, usb_midi_rx_callback cb)
 	return 0;
 }
 
+static void usb_midi_transfer_done(uint8_t ep, int size, void *priv)
+{
+	net_buf_unref((struct net_buf *) priv);
+}
+
+int usb_midi_write_buf(const struct device *dev, struct net_buf *buf, size_t len)
+{
+	int r = 0;
+	int written = 0;
+	while (written < len){
+		r = usb_midi_write(dev, &buf->data[written], len-written);
+		if (r < 0){
+			return r;
+		}
+		written += r;
+	}
+	net_buf_unref(buf);
+	return written;
+}
+
 int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len)
 {
-	uint8_t packet[USB_MIDI_BULK_SIZE];
+	struct net_buf *packet = NULL;
 	size_t read, written;
 	uint8_t midi_cmd, datasize;
 	const struct usb_midi_io_config *config = dev->config;
 	if (! config->is_input){
+		LOG_ERR("Can only write to USB-MIDI input");
 		return -ENOTSUP;
+	}
+
+	if (current_usb_status != USB_DC_CONFIGURED){
+		LOG_ERR("USB not ready");
+		return -EIO;
 	}
 
 	if (len < 1){
 		return 0;
 	}
 
+	packet = net_buf_alloc(&buf_pool, K_NO_WAIT);
+
 	read = 0;
-	for (written=0; written<sizeof(packet) && read<len; written+=4) {
+	for (written=0; written<packet->size && read<len; written+=4) {
 		midi_cmd = data[read] >> 4;
 		if (! (midi_cmd & 0b1000)){
+			LOG_ERR("Invalid MIDI command");
 			return -EINVAL;
 		}
 
 		datasize = midi_datasize(midi_cmd);
 		if (read+datasize+1 > len){
+			LOG_ERR("Not enough data for MIDI cmd %X (expecting %dB but got only %dB)", midi_cmd, datasize, len-read);
 			return -EINVAL;
 		}
 
-		packet[written] = (config->cable_number << 4) | midi_cmd;
-		memcpy(&packet[written+1], &data[read], datasize+1);
+		packet->data[written] = (config->cable_number << 4) | midi_cmd;
+		memcpy(&packet->data[written+1], &data[read], datasize+1);
 		read = read + 1 + datasize;
+
+		LOG_DBG("%2X | %02X %02X %02X %02X", written, packet->data[written], packet->data[written+1], packet->data[written+2], packet->data[written+3]);
 	}
 
-	int r = usb_write(USB_MIDI_TO_HOST_ENDPOINT_ID, packet, written, NULL);
-	if (r < 0){
-		return -EIO;
-	}
+	usb_transfer(USB_MIDI_TO_HOST_ENDPOINT_ID, packet->data, written,
+		     USB_TRANS_WRITE | USB_TRANS_NO_ZLP,
+		     usb_midi_transfer_done, packet);
 	return read;
 }

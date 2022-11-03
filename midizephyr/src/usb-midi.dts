@@ -8,15 +8,15 @@
 		compatible = "usb-midi-output";
 	};
 
-	/*
-	midi-in2 {
+	midi_in2: midi-in2 {
 		compatible = "usb-midi-input";
 	};
 
-	midi-out2 {
+	midi_out2: midi-out2 {
 		compatible = "usb-midi-output";
 	};
 
+	/*
 	midi-in3 {
 		compatible = "usb-midi-input";
 	};
