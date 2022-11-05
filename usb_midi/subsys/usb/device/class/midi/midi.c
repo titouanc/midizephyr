@@ -214,8 +214,14 @@ LISTIFY(MIDI_OUTPUT_DEVICE_COUNT, DEFINE_USB_MIDI_OUTPUT_DEVICE, ())
 #define DEVICE_DT_GET_DT_INST(index, compat) DEVICE_DT_GET(DT_INST(index, compat))
 const struct device *outputs[] = {LISTIFY(MIDI_OUTPUT_DEVICE_COUNT, DEVICE_DT_GET_DT_INST, (,), COMPAT_MIDI_OUTPUT)};
 
-NET_BUF_POOL_FIXED_DEFINE(buf_pool, 10, USB_MIDI_BULK_SIZE, 4, NULL);
+/* USB MIDI Event packet: USB-MIDI header + 3 MIDI Bytes (padding if needed)
+ * (midi10, Figure 8)
+ */
+NET_BUF_POOL_FIXED_DEFINE(tx_pool, 10, USB_MIDI_BULK_SIZE, 4, NULL);
+/* Plain MIDI Bytes */
+NET_BUF_POOL_FIXED_DEFINE(rx_pool, 10, 3 * USB_MIDI_BULK_SIZE / 4, 4, NULL);
 
+/* Number of MIDI bytes in a USB MIDI packet given its Code Index Number */
 static const int CIN_DATASIZE[16] = {-1, -1, 2, 3, 3, 1, 2, 3, 3, 3, 3, 3, 2, 2, 3, 1};
 
 static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
@@ -241,16 +247,19 @@ static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 			continue;
 		}
 		if (per_dev[cable_number] == NULL){
-			per_dev[cable_number] = net_buf_alloc(&buf_pool, K_NO_WAIT);
+			per_dev[cable_number] = net_buf_alloc(&rx_pool, K_NO_WAIT);
+			if (per_dev[cable_number] == NULL){
+				continue;
+			}
 		}
 
-		LOG_DBG("CIN=%d CN=%d | %02X %02X %02X", buf[i] & 0x0f, cable_number, buf[i+1], buf[i+2], buf[i+3]);
+		LOG_DBG("%d | %02X %02X %02X %02X", i, buf[i], buf[i+1], buf[i+2], buf[i+3]);
 		memcpy(&per_dev[cable_number]->data[len[cable_number]], &buf[i+1], datasize);
 		len[cable_number] += datasize;
 	}
 
 	for (int i=0; i<MIDI_OUTPUT_DEVICE_COUNT; i++){
-		if (len[i]){
+		if (per_dev[i]){
 			const struct device *dev = outputs[i];
 			struct usb_midi_io_data *drv_data = (struct usb_midi_io_data *) dev->data;
 			if (drv_data && drv_data->callback){
@@ -282,7 +291,8 @@ int usb_midi_write_buf(const struct device *dev, struct net_buf *buf, size_t len
 	while (written < len){
 		r = usb_midi_write(dev, &buf->data[written], len-written);
 		if (r < 0){
-			return r;
+			written = r;
+			break;
 		}
 		written += r;
 	}
@@ -292,8 +302,9 @@ int usb_midi_write_buf(const struct device *dev, struct net_buf *buf, size_t len
 
 int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len)
 {
+	int r, err;
 	struct net_buf *packet = NULL;
-	size_t read, written;
+	size_t consumed, written;
 	uint8_t midi_cmd, datasize;
 	const struct usb_midi_io_config *config = dev->config;
 	if (! config->is_input){
@@ -310,34 +321,47 @@ int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len)
 		return 0;
 	}
 
-	packet = net_buf_alloc(&buf_pool, K_NO_WAIT);
-	if (packet == NULL) {
-		return -ENOMEM;
+	if (usb_transfer_is_busy(USB_MIDI_TO_HOST_ENDPOINT_ID)){
+		return -EBUSY;
 	}
 
-	read = 0;
-	for (written=0; written<packet->size && read<len; written+=4) {
-		midi_cmd = data[read] >> 4;
+	packet = net_buf_alloc(&tx_pool, K_NO_WAIT);
+	if (packet == NULL) {
+		err = -ENOMEM;
+		goto fail;
+	}
+
+	consumed = 0;
+	for (written=0; written<packet->size && consumed<len; written+=4) {
+		midi_cmd = data[consumed] >> 4;
 		if (! (midi_cmd & 0b1000)){
 			LOG_ERR("Invalid MIDI command");
-			return -EINVAL;
+			err = -EINVAL;
+			goto fail;
 		}
 
 		datasize = midi_datasize(midi_cmd);
-		if (read+datasize+1 > len){
-			LOG_ERR("Not enough data for MIDI cmd %X (expecting %dB but got only %dB)", midi_cmd, datasize, len-read);
-			return -EINVAL;
+		if (consumed+datasize+1 > len){
+			LOG_ERR("Not enough data for MIDI cmd %X (expecting %dB but got only %dB)", midi_cmd, datasize, len-consumed);
+			err = -EINVAL;
+			goto fail;
 		}
 
 		packet->data[written] = (config->cable_number << 4) | midi_cmd;
-		memcpy(&packet->data[written+1], &data[read], datasize+1);
-		read = read + 1 + datasize;
+		memcpy(&packet->data[written+1], &data[consumed], datasize+1);
+		consumed = consumed + 1 + datasize;
 
-		LOG_DBG("%2X | %02X %02X %02X %02X", written, packet->data[written], packet->data[written+1], packet->data[written+2], packet->data[written+3]);
+		LOG_DBG("%2d | %02X %02X %02X %02X", written, packet->data[written], packet->data[written+1], packet->data[written+2], packet->data[written+3]);
 	}
 
 	usb_transfer(USB_MIDI_TO_HOST_ENDPOINT_ID, packet->data, written,
 		     USB_TRANS_WRITE | USB_TRANS_NO_ZLP,
 		     usb_midi_transfer_done, packet);
-	return read;
+	return consumed;
+
+	fail:
+		if (packet != NULL){
+			net_buf_unref(packet);
+		}
+		return err;
 }

@@ -5,6 +5,8 @@
 #include <zephyr/usb/usb_device.h>
 #include <usb_midi.h>
 
+#include "strerrno.h"
+
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 #define FORWARD_TO_MIDI_PORT midi_in
@@ -14,20 +16,14 @@ static const struct device *midi_in2 = DEVICE_DT_GET(DT_NODELABEL(midi_in2));
 static const struct device *midi_out = DEVICE_DT_GET(DT_NODELABEL(midi_out));
 static const struct device *midi_out2 = DEVICE_DT_GET(DT_NODELABEL(midi_out2));
 
-static const uint8_t midi_msg[] = {
-	0x99, 0x42, 0x42,
-	0x99, 0x46, 0x42,
-	0x89, 0x42, 0x00,
-	0x89, 0x46, 0x7f,
-};
-
 void forward_midi(const struct device *from, struct net_buf *buf, size_t len)
 {
-	for (size_t i=0; i<len; i++){
-		LOG_INF("  [%d] %02X", (int) i, (int) buf->data[i]);
-	}
 	int r = usb_midi_write_buf(FORWARD_TO_MIDI_PORT, buf, len);
-	LOG_INF("Fwding %dB from %s to %s -> %d", len, from->name, FORWARD_TO_MIDI_PORT->name, r);
+	if (r < 0){
+		LOG_ERR("Fwding %dB from %s to %s -> %d (%s)", len, from->name, FORWARD_TO_MIDI_PORT->name, r, strerrno(r));
+	} else {
+		LOG_DBG("Fwding %dB from %s to %s -> %d", len, from->name, FORWARD_TO_MIDI_PORT->name, r);
+	}
 }
 
 void main()
@@ -52,8 +48,6 @@ void main()
 	LOG_INF("USB enabled");
 
 	while (1){
-		ret = usb_midi_write(midi_in2, midi_msg, sizeof(midi_msg));
-		LOG_INF("Sending static midi msg: %d", ret);
 		k_sleep(K_MSEC(100));
 	}
 }
