@@ -166,8 +166,12 @@ struct usb_midi_io_config {
 	bool is_input;
 };
 
-struct usb_midi_io_data {
+struct usb_midi_output_data {
 	usb_midi_rx_callback callback;
+};
+
+struct usb_midi_input_data {
+	bool in_sysex;
 };
 
 static int usb_midi_io_init(const struct device *dev)
@@ -182,10 +186,11 @@ static int usb_midi_io_init(const struct device *dev)
 		.cable_number = index, \
 		.is_input = true, \
 	}; \
+	static struct usb_midi_input_data usb_midi_input##index##_data; \
 	DEVICE_DT_DEFINE(DT_INST(index, COMPAT_MIDI_INPUT),\
 		         usb_midi_io_init, \
 		         NULL,\
-		         NULL, \
+		         &usb_midi_input##index##_data, \
 		         &usb_midi_input##index##_config,        \
 			 APPLICATION, \
 			 CONFIG_KERNEL_INIT_PRIORITY_DEVICE, \
@@ -199,7 +204,7 @@ LISTIFY(MIDI_INPUT_DEVICE_COUNT, DEFINE_USB_MIDI_INPUT_DEVICE, ())
 		.cable_number = index, \
 		.is_input = false, \
 	}; \
-	static struct usb_midi_io_data usb_midi_output##index##_data; \
+	static struct usb_midi_output_data usb_midi_output##index##_data; \
 	DEVICE_DT_DEFINE(DT_INST(index, COMPAT_MIDI_OUTPUT), \
 			 usb_midi_io_init, \
 		         NULL, \
@@ -242,8 +247,8 @@ static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 	LOG_DBG("Rx %dB from host", read);
 	for (int i=0; i<read; i+=4){
 		uint8_t cable_number = buf[i] >> 4;
-		uint8_t datasize = CIN_DATASIZE[buf[i] & 0x0f];
-		if (cable_number > MIDI_OUTPUT_DEVICE_COUNT){
+		int datasize = CIN_DATASIZE[buf[i] & 0x0f];
+		if (datasize < 0 || cable_number > MIDI_OUTPUT_DEVICE_COUNT){
 			continue;
 		}
 		if (per_dev[cable_number] == NULL){
@@ -253,7 +258,7 @@ static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 			}
 		}
 
-		LOG_DBG("%d | %02X %02X %02X %02X", i, buf[i], buf[i+1], buf[i+2], buf[i+3]);
+		LOG_DBG("%2d | %02X %02X %02X %02X", i, buf[i], buf[i+1], buf[i+2], buf[i+3]);
 		memcpy(&per_dev[cable_number]->data[len[cable_number]], &buf[i+1], datasize);
 		len[cable_number] += datasize;
 	}
@@ -261,7 +266,7 @@ static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 	for (int i=0; i<MIDI_OUTPUT_DEVICE_COUNT; i++){
 		if (per_dev[i]){
 			const struct device *dev = outputs[i];
-			struct usb_midi_io_data *drv_data = (struct usb_midi_io_data *) dev->data;
+			struct usb_midi_output_data *drv_data = (struct usb_midi_output_data *) dev->data;
 			if (drv_data && drv_data->callback){
 				drv_data->callback(dev, per_dev[i], len[i]);
 			}
@@ -272,7 +277,12 @@ static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 
 int usb_midi_register(const struct device *dev, usb_midi_rx_callback cb)
 {
-	struct usb_midi_io_data *drv_data = (struct usb_midi_io_data *) dev->data;
+	const struct usb_midi_io_config *config = dev->config;
+	if (config->is_input){
+		LOG_ERR("Can only register to USB-MIDI output");
+		return -ENOTSUP;
+	}
+	struct usb_midi_output_data *drv_data = (struct usb_midi_output_data *) dev->data;
 	if (drv_data == NULL){
 		return -ENOTSUP;
 	}
@@ -301,13 +311,39 @@ static void usb_midi_transfer_done(uint8_t ep, int size, void *priv)
 	net_buf_unref((struct net_buf *) priv);
 }
 
+static inline int cin_for_midi_status_byte(uint8_t status_byte)
+{
+	if (MIDI_CMD_NOTE_OFF <= status_byte && status_byte < MIDI_CMD_SYSTEM_COMMON) {
+		return status_byte >> 4;
+	}
+
+	switch (status_byte){
+	case MIDI_SYS_TIMECODE:
+	case MIDI_SYS_SONG_SELECT:
+		return CIN_SYS_COMMON_2B;
+	case MIDI_SYS_SONG_POSITION:
+		return CIN_SYS_COMMON_3B;
+	case MIDI_SYS_TUNE_REQUEST:
+	case MIDI_SYS_CLOCK:
+	case MIDI_SYS_START:
+	case MIDI_SYS_CONTINUE:
+	case MIDI_SYS_STOP:
+	case MIDI_SYS_ACTIVE_SENSE:
+	case MIDI_SYS_RESET:
+		return CIN_SYS_COMMON_1B;
+	}
+
+	return -1;
+}
+
 int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len)
 {
 	int err;
+	int cin;
 	struct net_buf *packet = NULL;
 	size_t consumed, written;
-	uint8_t midi_cmd, datasize;
 	const struct usb_midi_io_config *config = dev->config;
+	struct usb_midi_input_data *drv_data = dev->data;
 	if (! config->is_input){
 		LOG_ERR("Can only write to USB-MIDI input");
 		return -ENOTSUP;
@@ -334,23 +370,51 @@ int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len)
 
 	consumed = 0;
 	for (written=0; written<packet->size && consumed<len; written+=4) {
-		midi_cmd = data[consumed] >> 4;
-		if (! (midi_cmd & 0b1000)){
-			LOG_ERR("Invalid MIDI command");
+		size_t remaining = len - consumed;
+		if (data[consumed] == MIDI_SYSEX_START){
+			LOG_WRN("Entering SysEx");
+			drv_data->in_sysex = true;
+		}
+
+		if (drv_data->in_sysex){
+			if (data[consumed] == MIDI_SYSEX_STOP){
+				cin = CIN_SYSEX_END_1B;
+				drv_data->in_sysex = false;
+			} else if (remaining > 1 && data[consumed+1] == MIDI_SYSEX_STOP){
+				cin = CIN_SYSEX_END_2B;
+				drv_data->in_sysex = false;
+			} else if (remaining > 2 && data[consumed+2] == MIDI_SYSEX_STOP){
+				cin = CIN_SYSEX_END_3B;
+				drv_data->in_sysex = false;
+			} else {
+				cin = CIN_SYSEX_START;
+			}
+		} else {
+			cin = cin_for_midi_status_byte(data[consumed]);
+		}
+
+		if (cin < 0){
+			LOG_ERR("No Code Index Number for midi status byte %02X", data[consumed]);
 			err = -EINVAL;
 			goto fail;
 		}
 
-		datasize = midi_datasize(midi_cmd);
-		if (consumed+datasize+1 > len){
-			LOG_ERR("Not enough data for MIDI cmd %X (expecting %dB but got only %dB)", midi_cmd, datasize, len-consumed);
+		int datasize = CIN_DATASIZE[cin];
+		if (datasize < 0){
+			LOG_ERR("Unknown datasize for CIN %X", cin);
+			err = -ENOTSUP;
+			goto fail;
+		}
+
+		if (datasize > remaining){
+			LOG_ERR("Not enough data for midi status byte %02X (expected %d but got only %d)", data[consumed], datasize, len-consumed);
 			err = -EINVAL;
 			goto fail;
 		}
 
-		packet->data[written] = (config->cable_number << 4) | midi_cmd;
-		memcpy(&packet->data[written+1], &data[consumed], datasize+1);
-		consumed = consumed + 1 + datasize;
+		packet->data[written] = (config->cable_number << 4) | cin;
+		memcpy(&packet->data[written+1], &data[consumed], datasize);
+		consumed += datasize;
 
 		LOG_DBG("%2d | %02X %02X %02X %02X", written, packet->data[written], packet->data[written+1], packet->data[written+2], packet->data[written+3]);
 	}

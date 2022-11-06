@@ -30,7 +30,7 @@
 #define CIN_CABLE_EVENT    0x1
 #define CIN_SYS_COMMON_2B  0x2
 #define CIN_SYS_COMMON_3B  0x3
-#define CIN_SYS_START_CONT 0x4
+#define CIN_SYSEX_START    0x4
 #define CIN_SYS_COMMON_1B  0x5
 #define CIN_SYSEX_END_1B   0x5
 #define CIN_SYSEX_END_2B   0x6
