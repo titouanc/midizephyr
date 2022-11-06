@@ -34,7 +34,7 @@
 #define MIDI_CONTROL_CHANGE(chan, cc, value) \
 	MIDI_COMMAND_3B(MIDI_CMD_CONTROL_CHANGE, chan, cc, value)
 
-typedef void (*usb_midi_rx_callback)(const struct device *dev, struct net_buf *data, size_t len);
+typedef void (*usb_midi_rx_callback)(const struct device *dev, const uint8_t *data, size_t len);
 
 /**
  * @brief      Get the number of MIDI data bytes that follow a given a leading
@@ -77,8 +77,6 @@ static inline int midi_datasize(const uint8_t status_byte)
 }
 
 int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len);
-
-int usb_midi_write_buf(const struct device *dev, struct net_buf *buf, size_t len);
 
 int usb_midi_register(const struct device *dev, usb_midi_rx_callback cb);
 

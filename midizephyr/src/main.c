@@ -18,18 +18,37 @@ static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(DT_ALIAS(led1), gpios);
 
 size_t tick = 0;
 
-void forward_midi(const struct device *from, struct net_buf *buf, size_t len)
+static int usb_midi_write_all(const struct device *dev, const uint8_t *data, size_t len)
 {
-	if (len > 0 && buf->data[0] == 0xF8){
+	int r = 0;
+	int written = 0;
+	while (written < len){
+		r = usb_midi_write(dev, &data[written], len-written);
+		if (r < 0){
+			written = r;
+			break;
+		}
+		written += r;
+	}
+	return written;
+}
+
+
+void forward_midi(const struct device *from, const uint8_t *data, size_t len)
+{
+	// Tempo LED
+	if (len > 0 && data[0] == 0xF8){
 		tick++;
 		gpio_pin_set_dt(&led, tick % 6 == 0);
 	}
-	net_buf_ref(buf);
-	int r = usb_midi_write_buf(FORWARD_TO_MIDI_PORT, buf, len);
+
+	int r = usb_midi_write_all(FORWARD_TO_MIDI_PORT, data, len);
 	if (r < 0){
-		LOG_ERR("Fwding %dB from %s to %s -> %d (%s)", len, from->name, FORWARD_TO_MIDI_PORT->name, r, strerrno(r));
+		LOG_ERR("Fwding %dB from %s to %s -> %d (%s)",
+			len, from->name, FORWARD_TO_MIDI_PORT->name, r, strerrno(r));
 	} else {
-		LOG_DBG("Fwding %dB from %s to %s -> %d", len, from->name, FORWARD_TO_MIDI_PORT->name, r);
+		LOG_DBG("Fwding %dB from %s to %s -> %d",
+			len, from->name, FORWARD_TO_MIDI_PORT->name, r);
 	}
 }
 

@@ -229,6 +229,21 @@ NET_BUF_POOL_FIXED_DEFINE(rx_pool, 10, 3 * USB_MIDI_BULK_SIZE / 4, 4, NULL);
 /* Number of MIDI bytes in a USB MIDI packet given its Code Index Number */
 static const int CIN_DATASIZE[16] = {-1, -1, 2, 3, 3, 1, 2, 3, 3, 3, 3, 3, 2, 2, 3, 1};
 
+#define LOG_USB_MIDI_PACKET(index, packet) \
+	switch (CIN_DATASIZE[(packet)[0] & 0x0f]){ \
+	case 1: \
+		LOG_DBG("%2d | %02X %02X", (index), (packet)[0], (packet)[1]); \
+		break; \
+	case 2: \
+		LOG_DBG("%2d | %02X %02X %02X", (index), (packet)[0], (packet)[1], (packet)[2]); \
+		break; \
+	case 3: \
+		LOG_DBG("%2d | %02X %02X %02X %02X", (index), (packet)[0], (packet)[1], (packet)[2], (packet)[3]); \
+		break; \
+	default: \
+		break; \
+	}
+
 static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 {
 	uint32_t read = 0;
@@ -236,7 +251,7 @@ static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 	struct net_buf *per_dev[MIDI_OUTPUT_DEVICE_COUNT] = {NULL};
 
 	uint8_t buf[USB_MIDI_BULK_SIZE];
-	int r = usb_read(USB_MIDI_FROM_HOST_ENDPOINT_ID, buf, sizeof(buf), &read);
+	int r = usb_ep_read_wait(USB_MIDI_FROM_HOST_ENDPOINT_ID, buf, sizeof(buf), &read);
 	if (r){
 		LOG_ERR("USB read error %d", r);
 		return;
@@ -251,16 +266,23 @@ static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 		if (datasize < 0 || cable_number > MIDI_OUTPUT_DEVICE_COUNT){
 			continue;
 		}
+		const struct device *dev = outputs[cable_number];
+		struct usb_midi_output_data *drv_data = (struct usb_midi_output_data *) dev->data;
+		if (! (drv_data && drv_data->callback)){
+			continue;
+		}
+
 		if (per_dev[cable_number] == NULL){
 			per_dev[cable_number] = net_buf_alloc(&rx_pool, K_NO_WAIT);
 			if (per_dev[cable_number] == NULL){
+				LOG_WRN("Cannot allocate rx buffer");
 				continue;
 			}
 		}
 
-		LOG_DBG("%2d | %02X %02X %02X %02X", i, buf[i], buf[i+1], buf[i+2], buf[i+3]);
 		memcpy(&per_dev[cable_number]->data[len[cable_number]], &buf[i+1], datasize);
 		len[cable_number] += datasize;
+		LOG_USB_MIDI_PACKET(i, &buf[i]);
 	}
 
 	for (int i=0; i<MIDI_OUTPUT_DEVICE_COUNT; i++){
@@ -268,10 +290,14 @@ static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 			const struct device *dev = outputs[i];
 			struct usb_midi_output_data *drv_data = (struct usb_midi_output_data *) dev->data;
 			if (drv_data && drv_data->callback){
-				drv_data->callback(dev, per_dev[i], len[i]);
+				drv_data->callback(dev, per_dev[i]->data, len[i]);
 			}
 			net_buf_unref(per_dev[i]);
 		}
+	}
+	r = usb_ep_read_continue(USB_MIDI_FROM_HOST_ENDPOINT_ID);
+	if (r){
+		LOG_ERR("Cannot pursue reading from USB");
 	}
 }
 
@@ -288,22 +314,6 @@ int usb_midi_register(const struct device *dev, usb_midi_rx_callback cb)
 	}
 	drv_data->callback = cb;
 	return 0;
-}
-
-int usb_midi_write_buf(const struct device *dev, struct net_buf *buf, size_t len)
-{
-	int r = 0;
-	int written = 0;
-	while (written < len){
-		r = usb_midi_write(dev, &buf->data[written], len-written);
-		if (r < 0){
-			written = r;
-			break;
-		}
-		written += r;
-	}
-	net_buf_unref(buf);
-	return written;
 }
 
 static void usb_midi_transfer_done(uint8_t ep, int size, void *priv)
@@ -372,25 +382,26 @@ int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len)
 	for (written=0; written<packet->size && consumed<len; written+=4) {
 		size_t remaining = len - consumed;
 		if (data[consumed] == MIDI_SYSEX_START){
-			LOG_WRN("Entering SysEx");
+			LOG_DBG("Entering SysEx");
 			drv_data->in_sysex = true;
 		}
 
-		if (drv_data->in_sysex){
-			if (data[consumed] == MIDI_SYSEX_STOP){
-				cin = CIN_SYSEX_END_1B;
-				drv_data->in_sysex = false;
-			} else if (remaining > 1 && data[consumed+1] == MIDI_SYSEX_STOP){
-				cin = CIN_SYSEX_END_2B;
-				drv_data->in_sysex = false;
-			} else if (remaining > 2 && data[consumed+2] == MIDI_SYSEX_STOP){
-				cin = CIN_SYSEX_END_3B;
-				drv_data->in_sysex = false;
-			} else {
-				cin = CIN_SYSEX_START;
-			}
-		} else {
+		if (! drv_data->in_sysex){
 			cin = cin_for_midi_status_byte(data[consumed]);
+		} else if (data[consumed] == MIDI_SYSEX_STOP){
+			cin = CIN_SYSEX_END_1B;
+			drv_data->in_sysex = false;
+			LOG_DBG("Leaving SysEx");
+		} else if (remaining > 1 && data[consumed+1] == MIDI_SYSEX_STOP){
+			cin = CIN_SYSEX_END_2B;
+			drv_data->in_sysex = false;
+			LOG_DBG("Leaving SysEx");
+		} else if (remaining > 2 && data[consumed+2] == MIDI_SYSEX_STOP){
+			cin = CIN_SYSEX_END_3B;
+			drv_data->in_sysex = false;
+			LOG_DBG("Leaving SysEx");
+		} else {
+			cin = CIN_SYSEX_START;
 		}
 
 		if (cin < 0){
@@ -416,7 +427,7 @@ int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len)
 		memcpy(&packet->data[written+1], &data[consumed], datasize);
 		consumed += datasize;
 
-		LOG_DBG("%2d | %02X %02X %02X %02X", written, packet->data[written], packet->data[written+1], packet->data[written+2], packet->data[written+3]);
+		LOG_USB_MIDI_PACKET(written, &packet->data[written]);
 	}
 
 	usb_transfer(USB_MIDI_TO_HOST_ENDPOINT_ID, packet->data, written,

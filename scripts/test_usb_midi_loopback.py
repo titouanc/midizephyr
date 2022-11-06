@@ -63,9 +63,13 @@ def listener():
 @pytest.mark.parametrize("midi", MIDI_MSGS.values(), ids=MIDI_MSGS.keys())
 def test_loopback(midi, listener):
     send_midi(midi)
-    listener.expect(midi.replace(" ", "\r\n"))
+    expected = midi.replace(" ", "\r\n")
+    try:
+        listener.expect(expected)
+    except:
+        assert listener.before.strip().decode().splitlines() == expected.splitlines()
 
 
-# def test_loopback_all_at_once(listener):
-#     whole_midi = " ".join(MIDI_MSGS.values())
-#     test_loopback(whole_midi, listener)
+def test_loopback_all_at_once(listener):
+    whole_midi = " ".join(MIDI_MSGS.values())
+    test_loopback(whole_midi, listener)
