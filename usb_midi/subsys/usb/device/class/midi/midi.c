@@ -265,6 +265,7 @@ static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 			if (drv_data && drv_data->callback){
 				drv_data->callback(dev, per_dev[i], len[i]);
 			}
+			net_buf_unref(per_dev[i]);
 		}
 	}
 }
@@ -277,11 +278,6 @@ int usb_midi_register(const struct device *dev, usb_midi_rx_callback cb)
 	}
 	drv_data->callback = cb;
 	return 0;
-}
-
-static void usb_midi_transfer_done(uint8_t ep, int size, void *priv)
-{
-	net_buf_unref((struct net_buf *) priv);
 }
 
 int usb_midi_write_buf(const struct device *dev, struct net_buf *buf, size_t len)
@@ -300,9 +296,14 @@ int usb_midi_write_buf(const struct device *dev, struct net_buf *buf, size_t len
 	return written;
 }
 
+static void usb_midi_transfer_done(uint8_t ep, int size, void *priv)
+{
+	net_buf_unref((struct net_buf *) priv);
+}
+
 int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len)
 {
-	int r, err;
+	int err;
 	struct net_buf *packet = NULL;
 	size_t consumed, written;
 	uint8_t midi_cmd, datasize;
