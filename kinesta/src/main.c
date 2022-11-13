@@ -67,9 +67,9 @@ void autotest()
  */
 void setup_wiring_workaround()
 {
-    const struct device *dev = device_get_binding("GPIOD");
+    const struct device *dev = DEVICE_DT_GET(DT_NODELABEL(gpiod));
     if (! dev){
-        LOG_ERR("Unable to open GPIOD");
+        LOG_ERR("Unable to open gpiod");
     } else {
         gpio_pin_configure(dev, 7, GPIO_INPUT);
     }
@@ -107,6 +107,7 @@ void main(void)
         for (i=0; i<N_KFBS; i++){
             kfb_update(&kfbs[i]);
         }
+        kinesta_midi_update();
         k_sleep(K_MSEC(1));
     }
 }
