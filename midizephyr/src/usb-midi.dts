@@ -34,3 +34,11 @@
 	};
 	*/
 };
+
+&arduino_i2c {
+	encoder1: encoder@71 {
+	        compatible = "duppa,i2cencoderv21";
+	        reg = <0x71>;
+	        interrupt-gpios = <&arduino_header 14 GPIO_ACTIVE_LOW>;
+	};
+};

@@ -4,6 +4,7 @@
 config KINESTA_HW
     bool "Enable support for Kinesta hardware modules"
     select I2C
+    select FPU
 
 if KINESTA_HW
 

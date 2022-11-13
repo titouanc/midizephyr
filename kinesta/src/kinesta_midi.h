@@ -5,4 +5,6 @@
 
 void kinesta_midi_out(const uint8_t pkt[3]);
 
+float kinesta_midi_get_beat();
+
 #endif

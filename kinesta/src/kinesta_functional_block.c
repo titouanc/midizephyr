@@ -112,7 +112,8 @@ static int kfb_update_primary_touchpad(kinesta_functional_block *self)
         // Frozen to a MIDI value: blink in the color map
         float t = (float) self->distance_midi_cc_value / 127;
         color = color_map(COLOR_GREEN, COLOR_RED, t);
-        color = color_mul(color, cos256f32[(now >> 1) & 0xff]);
+        float k = approxcos_normalized(kinesta_midi_get_beat());
+        color = color_mul(color, k);
     } else if (self->is_in_tracking_zone){
         // In tracking zone: colormap green to red
         color = color_map(COLOR_GREEN, COLOR_RED, kfb_get_distance_t(self));

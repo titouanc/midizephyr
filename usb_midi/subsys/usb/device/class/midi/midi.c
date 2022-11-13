@@ -418,8 +418,9 @@ int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len)
 		}
 
 		if (datasize > remaining){
-			LOG_ERR("Not enough data for midi status byte %02X (expected %d but got only %d)", data[consumed], datasize, len-consumed);
-			err = -EINVAL;
+			LOG_ERR("Not enough data for midi status byte %02X (expected %d but got only %d)",
+				drv_data->in_sysex ? data[consumed] : 0xF0, datasize, len-consumed);
+			err = -EILSEQ;
 			goto fail;
 		}
 

@@ -1,11 +1,12 @@
 from os import getenv
 from subprocess import check_call
-from sys import stderr
 
 import pexpect
 import pytest
 
 MIDI_PORT = getenv("MIDI_PORT", "hw:2,0,0")
+MIDI_IN_PORT = getenv("MIDI_IN_PORT", MIDI_PORT)
+MIDI_OUT_PORT = getenv("MIDI_OUT_PORT", MIDI_PORT)
 # See https://www.midi.org/specifications-old/item/table-1-summary-of-midi-message
 MIDI_MSGS = {
     # Channel Voice Messages
@@ -48,14 +49,12 @@ MIDI_MSGS = {
 
 
 def send_midi(msg: str):
-    check_call(["amidi", "-p", MIDI_PORT, "-S", msg])
+    check_call(["amidi", "-p", MIDI_OUT_PORT, "-S", msg])
 
 
 @pytest.fixture
 def listener():
-    proc = pexpect.spawn(
-        f"amidi -p {MIDI_PORT} -dac", timeout=1, logfile=stderr.buffer
-    )
+    proc = pexpect.spawn(f"amidi -p {MIDI_IN_PORT} -dac", timeout=1)
     yield proc
     proc.terminate(force=True)
 
@@ -64,10 +63,17 @@ def listener():
 def test_loopback(midi, listener):
     send_midi(midi)
     expected = midi.replace(" ", "\r\n")
+
     try:
         listener.expect(expected)
-    except:
-        assert listener.before.strip().decode().splitlines() == expected.splitlines()
+        errored = False
+    except pexpect.exceptions.TIMEOUT:
+        errored = True
+
+    # Leverage pytest diff instead of pexpect timeout error
+    if errored:
+        received = listener.before.strip().decode()
+        assert received.splitlines() == expected.splitlines()
 
 
 def test_loopback_all_at_once(listener):
