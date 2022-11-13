@@ -85,7 +85,9 @@ static int kfb_update_distance(kinesta_functional_block *self)
     double t = kfb_get_distance_t(self);
     uint8_t distance_midi_cc_value = (t < 0) ? 0 : (127 * t);
     if (distance_midi_cc_value != self->distance_midi_cc_value && ! self->is_frozen){
-        const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, self->midi_cc_group | 1, distance_midi_cc_value);
+        const uint8_t pkt[] = {
+        	MIDI_CONTROL_CHANGE(0, self->midi_cc_group | 1, distance_midi_cc_value)
+        };
         kinesta_midi_out(pkt);
         self->distance_midi_cc_value = distance_midi_cc_value;
     }
@@ -110,7 +112,8 @@ static int kfb_update_primary_touchpad(kinesta_functional_block *self)
         // Frozen to a MIDI value: blink in the color map
         float t = (float) self->distance_midi_cc_value / 127;
         color = color_map(COLOR_GREEN, COLOR_RED, t);
-        color = color_mul(color, cos256f32[(now >> 1) & 0xff]);
+        float k = approxcos_normalized(kinesta_midi_get_beat());
+        color = color_mul(color, k);
     } else if (self->is_in_tracking_zone){
         // In tracking zone: colormap green to red
         color = color_map(COLOR_GREEN, COLOR_RED, kfb_get_distance_t(self));
@@ -133,7 +136,7 @@ static int kfb_update_secondary_touchpad(kinesta_functional_block *self)
     self->was_secondary_pad_touched = self->is_secondary_pad_touched;
     self->is_secondary_pad_touched = touchpad_is_touched(self->secondary_touchpad);
     if (self->was_secondary_pad_touched != self->is_secondary_pad_touched) {
-        const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, self->midi_cc_group | 2, 127 * self->is_secondary_pad_touched);
+        const uint8_t pkt[] = {MIDI_CONTROL_CHANGE(0, self->midi_cc_group | 2, 127 * self->is_secondary_pad_touched)};
         kinesta_midi_out(pkt);
     }
 
@@ -167,7 +170,9 @@ static int kfb_update_encoder(kinesta_functional_block *self, int evt)
 
     uint8_t encoder_midi_cc_value = 127 * self->encoder_value;
     if (encoder_midi_cc_value != self->encoder_midi_cc_value){
-        const uint8_t pkt[] = MIDI_CONTROL_CHANGE(0, self->midi_cc_group | 3, encoder_midi_cc_value);
+        const uint8_t pkt[] = {
+        	MIDI_CONTROL_CHANGE(0, self->midi_cc_group | 3, encoder_midi_cc_value)
+        };
         kinesta_midi_out(pkt);
         self->encoder_midi_cc_value = encoder_midi_cc_value;
     }

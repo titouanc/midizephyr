@@ -1,0 +1,4 @@
+# Copyright (c) 2022 Titouan Christophe
+# SPDX-License-Identifier: Apache-2.0
+
+rsource "subsys/usb/device/class/midi/Kconfig"

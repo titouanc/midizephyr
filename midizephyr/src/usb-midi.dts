@@ -1,0 +1,44 @@
+&zephyr_udc0 {
+	midi_in: midi-in {
+		compatible = "usb-midi-input";
+	};
+
+
+	midi_out: midi-out {
+		compatible = "usb-midi-output";
+	};
+
+	/*
+	midi_in2: midi-in2 {
+		compatible = "usb-midi-input";
+	};
+
+	midi_out2: midi-out2 {
+		compatible = "usb-midi-output";
+	};
+
+	midi-in3 {
+		compatible = "usb-midi-input";
+	};
+
+	midi-out3 {
+		compatible = "usb-midi-output";
+	};
+
+	midi-in4 {
+		compatible = "usb-midi-input";
+	};
+
+	midi-out4 {
+		compatible = "usb-midi-output";
+	};
+	*/
+};
+
+&arduino_i2c {
+	encoder1: encoder@71 {
+	        compatible = "duppa,i2cencoderv21";
+	        reg = <0x71>;
+	        interrupt-gpios = <&arduino_header 14 GPIO_ACTIVE_LOW>;
+	};
+};

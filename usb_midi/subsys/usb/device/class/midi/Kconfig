@@ -1,0 +1,19 @@
+# USB MIDI configuration options
+
+# Copyright (c) 2022 Titouan Christophe
+# SPDX-License-Identifier: Apache-2.0
+
+config USB_DEVICE_MIDI
+	bool "USB MIDI Device Class Driver"
+	select NET_BUF
+	help
+		USB MIDI Device Class driver.
+		Device configuration is done via dt overlay.
+
+if USB_DEVICE_MIDI
+
+module = USB_MIDI
+module-str = USB MIDI
+source "subsys/logging/Kconfig.template.log_config"
+
+endif

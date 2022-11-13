@@ -1,3 +1,8 @@
+#include <math.h>
+#include <stdlib.h>
+#include <zephyr/kernel.h>
+
+
 const float cos256f32[256] = {
     1.0,
     0.9998482259889359,
@@ -256,3 +261,15 @@ const float cos256f32[256] = {
     0.9998482259889359,
     1.0
 };
+
+float approxcos_normalized(float t)
+{
+	size_t idx = ARRAY_SIZE(cos256f32) * t;
+	return cos256f32[idx % ARRAY_SIZE(cos256f32)];
+}
+
+
+float approxcos(float rad)
+{
+	return approxcos_normalized(rad / (2 * M_PI));
+}

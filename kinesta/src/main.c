@@ -7,6 +7,11 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(app);
 
+bool usb_midi_is_configured(){
+	LOG_WRN("Dumb implem for usb_midi_is_configured() !");
+	return true;
+}
+
 void scan_slices_rgb()
 {
     color_t colors[] = {COLOR_RED, COLOR_GREEN, COLOR_BLUE};

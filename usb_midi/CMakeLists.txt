@@ -1,0 +1,2 @@
+zephyr_include_directories(include)
+add_subdirectory_ifdef(CONFIG_USB_DEVICE_MIDI subsys/usb/device/class/midi)

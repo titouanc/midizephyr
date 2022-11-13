@@ -10,9 +10,6 @@ on:
   release:
     types: [created]
 
-env:
-  projects: '["kinesta"]'
-
 jobs:
   discover:
     name: Discover projects to build
@@ -21,7 +18,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
 
     steps:
-    - run: echo '::set-output name=matrix::["kinesta"]'
+    - run: echo '::set-output name=matrix::["midizephyr", "kinesta"]'
       id: set-matrix
 
   build:
