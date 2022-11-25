@@ -1,0 +1,35 @@
+name: Release published
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  announce:
+    name: Announce new release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get release
+        id: get_release
+        uses: bruceadams/get-release@v1.3.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Send slack webhook
+        run: >
+          curl -X POST --data @- ${{ secrets.SLACK_RELEASE_WEBHOOK_URL }} <<EOF
+          {
+            "blocks": [
+              {
+                "type": "header",
+                "text": {"type": "plain_text", "text": "New release of ${{ github.repo }}"}
+              },
+              {
+                "type": "section",
+                "text": {
+                  "text": "${{ steps.get_release.outputs.body }}"
+                }
+              }
+            ]
+          }
+          EOF
