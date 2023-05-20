@@ -212,6 +212,34 @@
 };
 
 / {
+       midi-buttons {
+               compatible = "gpio-keys";
+
+               midi_din_btn_pressed: midi-din-btn-pressed {
+                       gpios = <&gpiof 5 GPIO_ACTIVE_HIGH>;
+               };
+               midi_din_btn_released: midi-din-btn-released {
+                       gpios = <&gpiof 3 GPIO_ACTIVE_HIGH>;
+               };
+               midi_usb_btn_pressed: midi-usb-btn-pressed {
+                       gpios = <&gpioc 3 GPIO_ACTIVE_HIGH>;
+               };
+               midi_usb_btn_released: midi-usb-btn-released {
+                       gpios = <&gpioc 0 GPIO_ACTIVE_HIGH>;
+               };
+       };
+
+       midi-buttons-leds {
+               compatible = "gpio-leds";
+
+               midi_din_btn_led: midi-din-btn-led {
+                       gpios = <&gpiob 5 GPIO_ACTIVE_HIGH>;
+               };
+               midi_usb_btn_led: midi-usb-btn-led {
+                       gpios = <&gpiob 3 GPIO_ACTIVE_HIGH>;
+               };
+       };
+
     midi_din {
         compatible = "kinesta,midi-din";
         uart = <&usart2>;
