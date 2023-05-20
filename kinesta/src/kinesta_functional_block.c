@@ -172,7 +172,7 @@ static int kfb_update_encoder(kinesta_functional_block *self, int evt)
         self->encoder_midi_cc_value = encoder_midi_cc_value;
     }
     color_t color = color_map(COLOR_GREEN, COLOR_RED, self->encoder_value);
-    return encoder_set_color(self->encoder, color_mul(color, 0.66));
+    return encoder_set_color(self->encoder, color);
 }
 
 static void kfb_encoder_changed(struct encoder_callback_t *callback, int event)
