@@ -76,8 +76,17 @@ static inline int midi_datasize(const uint8_t status_byte)
 	}
 }
 
+/**
+ * @brief      Send MIDI data to the host
+ * @param[in]  dev   A MIDI input
+ * @param[in]  data  The data to send
+ * @param[in]  len   The number of data bytes to send
+ * @return     The number of bytes sent, or a negative number on error
+ */
 int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len);
 
-int usb_midi_register(const struct device *dev, usb_midi_rx_callback cb);
+int usb_midi_peak(const struct device *dev, const uint8_t **data, size_t len);
+
+int usb_midi_read_continue(const struct device *dev, size_t n);
 
 #endif

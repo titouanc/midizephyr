@@ -1,6 +1,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/usb/usb_device.h>
+#include <zephyr/sys/ring_buffer.h>
 #include <usb_descriptor.h>
 
 #include <usb_midi.h>
@@ -15,6 +16,43 @@ LOG_MODULE_REGISTER(usb_midi, CONFIG_USB_MIDI_LOG_LEVEL);
 #define MIDI_OUTPUT_DEVICE_COUNT DT_NUM_INST_STATUS_OKAY(COMPAT_MIDI_OUTPUT)
 #define MIDI_INPUT_DEVICE_COUNT DT_NUM_INST_STATUS_OKAY(COMPAT_MIDI_INPUT)
 
+
+#if CONFIG_USB_DEVICE_MIDI_NODELABEL_AS_NAME
+#define USB_MIDI_IO_STR_DECLARE(inst) \
+	struct { \
+		uint8_t bLength; \
+		uint8_t bDescriptorType; \
+		uint8_t bString[USB_BSTRING_LENGTH(DT_NODE_FULL_NAME(inst))]; \
+	} __packed
+
+#define USB_MIDI_IO_STR_DESCRIPTOR(inst) \
+	USBD_STRING_DESCR_USER_DEFINE(primary) USB_MIDI_IO_STR_DECLARE(inst) inst##_str = { \
+		.bLength = USB_STRING_DESCRIPTOR_LENGTH(DT_NODE_FULL_NAME(inst)), \
+		.bDescriptorType = USB_DESC_STRING, \
+		.bString = DT_NODE_FULL_NAME(inst), \
+	};
+
+DT_FOREACH_STATUS_OKAY(COMPAT_MIDI_INPUT, USB_MIDI_IO_STR_DESCRIPTOR)
+DT_FOREACH_STATUS_OKAY(COMPAT_MIDI_OUTPUT, USB_MIDI_IO_STR_DESCRIPTOR)
+
+struct usb_str_descriptor {
+	uint8_t bLength;
+	uint8_t bDescriptorType;
+	uint8_t bString[];
+} __packed;
+
+#define USB_MIDI_IO_STR_REF(inst) &inst##_str,
+
+const struct usb_str_descriptor *input_names[] = {
+	DT_FOREACH_STATUS_OKAY(COMPAT_MIDI_INPUT, USB_MIDI_IO_STR_REF)
+};
+
+const struct usb_str_descriptor *output_names[] = {
+	DT_FOREACH_STATUS_OKAY(COMPAT_MIDI_OUTPUT, USB_MIDI_IO_STR_REF)
+};
+#endif // CONFIG_USB_DEVICE_MIDI_NODELABEL_AS_NAME
+
+
 #define INPUT_INDEX(dt_index) (dt_index)
 #define OUTPUT_INDEX(dt_index) (dt_index + MIDI_INPUT_DEVICE_COUNT)
 
@@ -26,32 +64,79 @@ LOG_MODULE_REGISTER(usb_midi, CONFIG_USB_MIDI_LOG_LEVEL);
 #define INPUT_EMB_JACK_ID_(x, _) INPUT_EMB_JACK_ID(x)
 #define OUTPUT_EMB_JACK_ID_(x, _) OUTPUT_EMB_JACK_ID(x)
 
-#define MIDI_INPUT_DESCRIPTOR(index, _) \
-	USB_MIDI_IO_DESCRIPTOR(1, INPUT_EMB_JACK_ID(index), INPUT_EXT_JACK_ID(index))
+struct midi_input_descriptor {
+	// External jack (outside -> midistreaming)
+	struct usb_ms_in_jack_descriptor ext;
+	// Embedded jack (midistreaming -> host)
+	struct usb_ms_out_jack_descriptor emb;
+} __packed;
 
-#define MIDI_OUTPUT_DESCRIPTOR(index, _) \
-	USB_MIDI_IO_DESCRIPTOR(0, OUTPUT_EMB_JACK_ID(index), OUTPUT_EXT_JACK_ID(index))
+struct midi_output_descriptor {
+	// Embedded jack (host -> midistreaming)
+	struct usb_ms_in_jack_descriptor emb;
+	// External jack (midistreaming -> outside)
+	struct usb_ms_out_jack_descriptor ext;
+} __packed;
 
-#define USB_MIDI_IO_STR_DECLARE(inst) \
-	struct inst##_str_desc { \
-		uint8_t bLength; \
-		uint8_t bDescriptorType; \
-		uint8_t bString[USB_BSTRING_LENGTH(DT_NODE_FULL_NAME(inst))]; \
-	} __packed;
+#define MIDI_INPUT_JACKS(index, _) \
+	{\
+		.ext = { \
+			.bLength=sizeof(struct usb_ms_in_jack_descriptor), \
+			.bDescriptorType=USB_DESC_CS_INTERFACE, \
+			.bDescriptorSubtype=MIDI_IN_JACK, \
+			.bJackType=JACK_EXTERNAL, \
+			.bJackID=INPUT_EXT_JACK_ID(index), \
+		},\
+		.emb = { \
+			.bLength=sizeof(struct usb_ms_out_jack_descriptor), \
+			.bDescriptorType=USB_DESC_CS_INTERFACE, \
+			.bDescriptorSubtype=MIDI_OUT_JACK, \
+			.bJackType=JACK_EMBEDDED, \
+			.bJackID=INPUT_EMB_JACK_ID(index), \
+			.bNrInputPins=1, \
+			.BASourceID1=INPUT_EXT_JACK_ID(index), \
+			.BASourcePin1=1, \
+		},\
+	}
 
-#define USB_MIDI_IO_STR_DESCRIPTOR(inst) \
-	USBD_STRING_DESCR_USER_DEFINE(primary) struct inst##_str_desc inst##_str = { \
-		.bLength = USB_STRING_DESCRIPTOR_LENGTH(DT_NODE_FULL_NAME(inst)), \
-		.bDescriptorType = USB_DESC_STRING, \
-		.bString = DT_NODE_FULL_NAME(inst), \
-	};
+#define MIDI_OUTPUT_JACKS(index, _) \
+	{\
+		.emb = { \
+			.bLength=sizeof(struct usb_ms_in_jack_descriptor), \
+			.bDescriptorType=USB_DESC_CS_INTERFACE, \
+			.bDescriptorSubtype=MIDI_IN_JACK, \
+			.bJackType=JACK_EMBEDDED, \
+			.bJackID=OUTPUT_EMB_JACK_ID(index), \
+		},\
+		.ext = { \
+			.bLength=sizeof(struct usb_ms_out_jack_descriptor), \
+			.bDescriptorType=USB_DESC_CS_INTERFACE, \
+			.bDescriptorSubtype=MIDI_OUT_JACK, \
+			.bJackType=JACK_EXTERNAL, \
+			.bJackID=OUTPUT_EXT_JACK_ID(index), \
+			.bNrInputPins=1, \
+			.BASourceID1=OUTPUT_EMB_JACK_ID(index), \
+			.BASourcePin1=1, \
+		},\
+	}
 
-#define DEFINE_USB_MIDI_IO_STR(inst) \
-	USB_MIDI_IO_STR_DECLARE(inst); \
-	USB_MIDI_IO_STR_DESCRIPTOR(inst);
+struct usb_ms_if_descriptor {
+	/* AudioControl class header */
+	struct usb_if_descriptor std_ac;
+	struct usb_ac_cs_descriptor cs_ac;
+	/* MidiStreaming class header */
+	struct usb_if_descriptor std_ms;
+	struct usb_ms_cs_if_descriptor cs_ms;
+	/* Jacks */
+	struct midi_input_descriptor inputs[MIDI_INPUT_DEVICE_COUNT];
+	struct midi_output_descriptor outputs[MIDI_OUTPUT_DEVICE_COUNT];
+	/* Endpoints */
+	struct usb_ep_descriptor std_ep_inputs;
+	USB_MS_CS_EP_DESCRIPTOR(MIDI_INPUT_DEVICE_COUNT) cs_ep_inputs;
+	struct usb_ep_descriptor std_ep_outputs;
+	USB_MS_CS_EP_DESCRIPTOR(MIDI_OUTPUT_DEVICE_COUNT) cs_ep_outputs;
+} __packed;
 
-DT_FOREACH_STATUS_OKAY(COMPAT_MIDI_INPUT, DEFINE_USB_MIDI_IO_STR)
-DT_FOREACH_STATUS_OKAY(COMPAT_MIDI_OUTPUT, DEFINE_USB_MIDI_IO_STR)
 
 static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status);
 
@@ -60,42 +145,106 @@ static struct usb_ep_cfg_data ep_cfg[] = {
 	{.ep_cb = usb_midi_rx, .ep_addr = USB_MIDI_FROM_HOST_ENDPOINT_ID},
 };
 
-typedef USB_MIDI_IF_DESCRIPTOR_DECLARE(MIDI_OUTPUT_DEVICE_COUNT, MIDI_INPUT_DEVICE_COUNT)
-        midistreaming_class;
-
-USBD_CLASS_DESCR_DEFINE(primary, 0) midistreaming_class midistreaming_cfg = {
-	USB_MIDI_IF_DESCRIPTOR_INIT(MIDI_OUTPUT_DEVICE_COUNT, MIDI_INPUT_DEVICE_COUNT),
+USBD_CLASS_DESCR_DEFINE(primary, 0) struct usb_ms_if_descriptor midistreaming_cfg = {
+	.std_ac = {
+		.bLength = sizeof(struct usb_if_descriptor),
+		.bDescriptorType = USB_DESC_INTERFACE,
+		.bInterfaceNumber = 0,
+		.bAlternateSetting = 0,
+		.bNumEndpoints = 0,
+		.bInterfaceClass = USB_BCC_AUDIO,
+		.bInterfaceSubClass = USB_AUDIO_AUDIOCONTROL,
+		.bInterfaceProtocol = 0,
+		.iInterface = 0,
+	},
+	.cs_ac = {
+		.bLength = sizeof(struct usb_ac_cs_descriptor),
+		.bDescriptorType = USB_DESC_CS_INTERFACE,
+		.bDescriptorSubtype = USB_AUDIO_HEADER,
+		.bcdADC = sys_cpu_to_le16(0x0100),
+		.wTotalLength = sys_cpu_to_le16(9),
+		.bInCollection = 1,
+		.baInterfaceNr1 = 1,
+	},
+	.std_ms = {
+		.bLength = sizeof(struct usb_if_descriptor),
+		.bDescriptorType = USB_DESC_INTERFACE,
+		.bInterfaceNumber = 1,
+		.bAlternateSetting = 0,
+		.bNumEndpoints = 2,
+		.bInterfaceClass = USB_BCC_AUDIO,
+		.bInterfaceSubClass = USB_AUDIO_MIDISTREAMING,
+		.bInterfaceProtocol = 0,
+		.iInterface = 0
+	},
+	.cs_ms = {
+		.bLength = sizeof(struct usb_ms_cs_if_descriptor),
+		.bDescriptorType = USB_DESC_CS_INTERFACE,
+		.bDescriptorSubtype = MS_HEADER,
+		.bcdADC = sys_cpu_to_le16(0x0100),
+		.wTotalLength = (
+			sizeof(struct usb_ms_if_descriptor)
+			- 2*sizeof(struct usb_if_descriptor)
+			- sizeof(struct usb_ac_cs_descriptor)
+		),
+	},
 	.inputs = {
-		LISTIFY(MIDI_INPUT_DEVICE_COUNT, MIDI_INPUT_DESCRIPTOR, (,))
+		LISTIFY(MIDI_INPUT_DEVICE_COUNT, MIDI_INPUT_JACKS, (,))
 	},
 	.outputs = {
-		LISTIFY(MIDI_OUTPUT_DEVICE_COUNT, MIDI_OUTPUT_DESCRIPTOR, (,))
+		LISTIFY(MIDI_OUTPUT_DEVICE_COUNT, MIDI_OUTPUT_JACKS, (,))
 	},
-	.cs_ep_inputs = USB_MIDI_CS_EP_DESCRIPTOR(
-		LISTIFY(MIDI_INPUT_DEVICE_COUNT, INPUT_EMB_JACK_ID_, (,))
-	),
-	.cs_ep_outputs = USB_MIDI_CS_EP_DESCRIPTOR(
-		LISTIFY(MIDI_OUTPUT_DEVICE_COUNT, OUTPUT_EMB_JACK_ID_, (,))
-	),
+	.std_ep_inputs = {
+		.bLength = sizeof(struct usb_ep_descriptor),
+		.bDescriptorType = USB_DESC_ENDPOINT,
+		.bEndpointAddress = USB_MIDI_TO_HOST_ENDPOINT_ID,
+		.bmAttributes = USB_DC_EP_BULK,
+		.wMaxPacketSize = sys_cpu_to_le16(USB_MIDI_BULK_SIZE),
+	},
+	.cs_ep_inputs = {
+		.bLength = sizeof(USB_MS_CS_EP_DESCRIPTOR(MIDI_INPUT_DEVICE_COUNT)),
+		.bDescriptorType = USB_DESC_CS_ENDPOINT,
+		.bDescriptorSubtype = MS_GENERAL,
+		.bNumEmbMIDIJack = MIDI_INPUT_DEVICE_COUNT,
+		.BAAssocJackID = {
+			LISTIFY(MIDI_INPUT_DEVICE_COUNT, INPUT_EMB_JACK_ID_, (,))
+		}
+	},
+	.std_ep_outputs = {
+		.bLength = sizeof(struct usb_ep_descriptor),
+		.bDescriptorType = USB_DESC_ENDPOINT,
+		.bEndpointAddress = USB_MIDI_FROM_HOST_ENDPOINT_ID,
+		.bmAttributes = USB_DC_EP_BULK,
+		.wMaxPacketSize = sys_cpu_to_le16(USB_MIDI_BULK_SIZE),
+	},
+	.cs_ep_outputs = {
+		.bLength = sizeof(USB_MS_CS_EP_DESCRIPTOR(MIDI_OUTPUT_DEVICE_COUNT)),
+		.bDescriptorType = USB_DESC_CS_ENDPOINT,
+		.bDescriptorSubtype = MS_GENERAL,
+		.bNumEmbMIDIJack = MIDI_OUTPUT_DEVICE_COUNT,
+		.BAAssocJackID = {
+			LISTIFY(MIDI_OUTPUT_DEVICE_COUNT, OUTPUT_EMB_JACK_ID_, (,))
+		}
+	},
 };
 
 static void usb_midi_configure_interface(struct usb_desc_header *head, uint8_t bInterfaceNumber)
 {
-	LOG_DBG("Configuring interface: %d (head=%p, ms=%p)", (int)bInterfaceNumber, head, &midistreaming_cfg);
-
-	if (head == (struct usb_desc_header *) &midistreaming_cfg){
-		#define JACK_STR_VAR_NAME(inst) JACK_STR_VAR_NAME_(inst)
-		#define JACK_STR_VAR_NAME_(inst) inst##_str
-		#define SET_IJACK(idx, array, compat) \
-			midistreaming_cfg.array[idx].in_jack.iJack = usb_get_str_descriptor_idx(& JACK_STR_VAR_NAME(DT_INST(idx, compat))); \
-			midistreaming_cfg.array[idx].out_jack.iJack = usb_get_str_descriptor_idx(& JACK_STR_VAR_NAME(DT_INST(idx, compat)));
-		LISTIFY(MIDI_INPUT_DEVICE_COUNT, SET_IJACK, (), inputs, COMPAT_MIDI_INPUT)
-		LISTIFY(MIDI_OUTPUT_DEVICE_COUNT, SET_IJACK, (), outputs, COMPAT_MIDI_OUTPUT)
-		#undef JACK_STR_VAR_NAME
-		#undef JACK_STR_VAR_NAME_
-		#undef SET_IJACK
+	size_t i;
+	if (head != (struct usb_desc_header *) &midistreaming_cfg){
+		return;
 	}
 
+	LOG_DBG("Configuring interface: %d (%p)", (int)bInterfaceNumber, &midistreaming_cfg);
+
+#if CONFIG_USB_DEVICE_MIDI_NODELABEL_AS_NAME
+	for (i=0; i<ARRAY_SIZE(midistreaming_cfg.inputs); i++){
+		midistreaming_cfg.inputs[i].emb.iJack = usb_get_str_descriptor_idx(input_names[i]);
+	}
+	for (i=0; i<ARRAY_SIZE(midistreaming_cfg.outputs); i++){
+		midistreaming_cfg.outputs[i].emb.iJack = usb_get_str_descriptor_idx(output_names[i]);
+	}
+#endif // CONFIG_USB_DEVICE_MIDI_NODELABEL_AS_NAME
 }
 
 static enum usb_dc_status_code current_usb_status = USB_DC_UNKNOWN;
@@ -150,24 +299,25 @@ USBD_DEFINE_CFG_DATA(primary) = {
 	.interface_config = usb_midi_configure_interface,
 	.interface_descriptor = &midistreaming_cfg,
 	.cb_usb_status = usb_midi_status_callback,
-	.interface =
-		{
-			.class_handler = NULL,
-			.custom_handler = NULL,
-			.vendor_handler = NULL,
-		},
+	.interface = {
+		.class_handler = NULL,
+		.custom_handler = NULL,
+		.vendor_handler = NULL,
+	},
 	.num_endpoints = ARRAY_SIZE(ep_cfg),
 	.endpoint = ep_cfg,
 };
 
 struct usb_midi_io_config {
-	struct usb_midi_io_descriptor *desc;
-	uint8_t cable_number;
 	bool is_input;
+	struct usb_midi_input_descriptor *desc;
+	uint8_t cable_number;
 };
 
 struct usb_midi_output_data {
-	usb_midi_rx_callback callback;
+	struct k_sem sem;
+	struct ring_buf fifo;
+	uint8_t fifo_data[16];
 };
 
 struct usb_midi_input_data {
@@ -176,15 +326,25 @@ struct usb_midi_input_data {
 
 static int usb_midi_io_init(const struct device *dev)
 {
+	int r = 0;
+	struct usb_midi_output_data *drv_data;
 	LOG_DBG("%s: cfg=%p data=%p", dev->name, dev->config, dev->data);
-	return 0;
+	struct usb_midi_io_config *cfg = dev->config;
+
+	if (! cfg->is_input){
+		drv_data = dev->data;
+		ring_buf_init(&drv_data->fifo, sizeof(drv_data->fifo_data), drv_data->fifo_data);
+		r = k_sem_init(&drv_data->sem, 1, 1);
+	}
+	return r;
+
 }
 
 #define DEFINE_USB_MIDI_INPUT_DEVICE(index, _) \
 	static const struct usb_midi_io_config usb_midi_input##index##_config = { \
+		.is_input = true, \
 		.desc = &midistreaming_cfg.inputs[index], \
 		.cable_number = index, \
-		.is_input = true, \
 	}; \
 	static struct usb_midi_input_data usb_midi_input##index##_data; \
 	DEVICE_DT_DEFINE(DT_INST(index, COMPAT_MIDI_INPUT),\
@@ -200,9 +360,9 @@ LISTIFY(MIDI_INPUT_DEVICE_COUNT, DEFINE_USB_MIDI_INPUT_DEVICE, ())
 
 #define DEFINE_USB_MIDI_OUTPUT_DEVICE(index, _) \
 	static const struct usb_midi_io_config usb_midi_output##index##_config = { \
+		.is_input = false, \
 		.desc = &midistreaming_cfg.outputs[index], \
 		.cable_number = index, \
-		.is_input = false, \
 	}; \
 	static struct usb_midi_output_data usb_midi_output##index##_data; \
 	DEVICE_DT_DEFINE(DT_INST(index, COMPAT_MIDI_OUTPUT), \
@@ -219,26 +379,19 @@ LISTIFY(MIDI_OUTPUT_DEVICE_COUNT, DEFINE_USB_MIDI_OUTPUT_DEVICE, ())
 #define DEVICE_DT_GET_DT_INST(index, compat) DEVICE_DT_GET(DT_INST(index, compat))
 const struct device *outputs[] = {LISTIFY(MIDI_OUTPUT_DEVICE_COUNT, DEVICE_DT_GET_DT_INST, (,), COMPAT_MIDI_OUTPUT)};
 
-/* USB MIDI Event packet: USB-MIDI header + 3 MIDI Bytes (padding if needed)
- * (midi10, Figure 8)
- */
-NET_BUF_POOL_FIXED_DEFINE(tx_pool, 10, USB_MIDI_BULK_SIZE, 4, NULL);
-/* Plain MIDI Bytes */
-NET_BUF_POOL_FIXED_DEFINE(rx_pool, 10, 3 * USB_MIDI_BULK_SIZE / 4, 4, NULL);
-
 /* Number of MIDI bytes in a USB MIDI packet given its Code Index Number */
 static const int CIN_DATASIZE[16] = {-1, -1, 2, 3, 3, 1, 2, 3, 3, 3, 3, 3, 2, 2, 3, 1};
 
-#define LOG_USB_MIDI_PACKET(index, packet) \
+#define LOG_USB_MIDI_PACKET(dev, index, packet) \
 	switch (CIN_DATASIZE[(packet)[0] & 0x0f]){ \
 	case 1: \
-		LOG_DBG("%2d | %02X %02X", (index), (packet)[0], (packet)[1]); \
+		LOG_DBG("[%s] %2d | %02X %02X", (dev)->name, (index), (packet)[0], (packet)[1]); \
 		break; \
 	case 2: \
-		LOG_DBG("%2d | %02X %02X %02X", (index), (packet)[0], (packet)[1], (packet)[2]); \
+		LOG_DBG("[%s] %2d | %02X %02X %02X", (dev)->name, (index), (packet)[0], (packet)[1], (packet)[2]); \
 		break; \
 	case 3: \
-		LOG_DBG("%2d | %02X %02X %02X %02X", (index), (packet)[0], (packet)[1], (packet)[2], (packet)[3]); \
+		LOG_DBG("[%s] %2d | %02X %02X %02X %02X", (dev)->name, (index), (packet)[0], (packet)[1], (packet)[2], (packet)[3]); \
 		break; \
 	default: \
 		break; \
@@ -263,57 +416,25 @@ static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 	for (int i=0; i<read; i+=4){
 		uint8_t cable_number = buf[i] >> 4;
 		int datasize = CIN_DATASIZE[buf[i] & 0x0f];
-		if (datasize < 0 || cable_number > MIDI_OUTPUT_DEVICE_COUNT){
+		if (datasize < 1 || datasize > (read-i) || cable_number > MIDI_OUTPUT_DEVICE_COUNT){
 			continue;
 		}
+
 		const struct device *dev = outputs[cable_number];
-		struct usb_midi_output_data *drv_data = (struct usb_midi_output_data *) dev->data;
-		if (! (drv_data && drv_data->callback)){
-			continue;
+		struct usb_midi_output_data *out = (struct usb_midi_output_data *) dev->data;
+		r = ring_buf_put(&out->fifo, &buf[i+1], datasize);
+		if (r <= 0){
+			LOG_ERR("[%s] ring_buf_put -> %d", dev->name, r);
+		} else {
+			LOG_DBG("[%s] ring_buf_space_get: %d", dev->name, ring_buf_space_get(&out->fifo));
 		}
-
-		if (per_dev[cable_number] == NULL){
-			per_dev[cable_number] = net_buf_alloc(&rx_pool, K_NO_WAIT);
-			if (per_dev[cable_number] == NULL){
-				LOG_WRN("Cannot allocate rx buffer");
-				continue;
-			}
-		}
-
-		memcpy(&per_dev[cable_number]->data[len[cable_number]], &buf[i+1], datasize);
-		len[cable_number] += datasize;
-		LOG_USB_MIDI_PACKET(i, &buf[i]);
-	}
-
-	for (int i=0; i<MIDI_OUTPUT_DEVICE_COUNT; i++){
-		if (per_dev[i]){
-			const struct device *dev = outputs[i];
-			struct usb_midi_output_data *drv_data = (struct usb_midi_output_data *) dev->data;
-			if (drv_data && drv_data->callback){
-				drv_data->callback(dev, per_dev[i]->data, len[i]);
-			}
-			net_buf_unref(per_dev[i]);
-		}
+		k_sem_give(&out->sem);
+		LOG_USB_MIDI_PACKET(dev, i/4, &buf[i]);
 	}
 	r = usb_ep_read_continue(USB_MIDI_FROM_HOST_ENDPOINT_ID);
 	if (r){
 		LOG_ERR("Cannot pursue reading from USB");
 	}
-}
-
-int usb_midi_register(const struct device *dev, usb_midi_rx_callback cb)
-{
-	const struct usb_midi_io_config *config = dev->config;
-	if (config->is_input){
-		LOG_ERR("Can only register to USB-MIDI output");
-		return -ENOTSUP;
-	}
-	struct usb_midi_output_data *drv_data = (struct usb_midi_output_data *) dev->data;
-	if (drv_data == NULL){
-		return -ENOTSUP;
-	}
-	drv_data->callback = cb;
-	return 0;
 }
 
 static void usb_midi_transfer_done(uint8_t ep, int size, void *priv)
@@ -348,97 +469,49 @@ static inline int cin_for_midi_status_byte(uint8_t status_byte)
 
 int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len)
 {
-	int err;
-	int cin;
-	struct net_buf *packet = NULL;
-	size_t consumed, written;
-	const struct usb_midi_io_config *config = dev->config;
-	struct usb_midi_input_data *drv_data = dev->data;
-	if (! config->is_input){
-		LOG_ERR("Can only write to USB-MIDI input");
+	int r;
+	const struct usb_midi_input_data *drv_data;
+	const struct usb_midi_io_config *const config = dev->config;
+
+	// Cannot write to an output
+	if (! config->is_input) {
 		return -ENOTSUP;
 	}
 
-	if (current_usb_status != USB_DC_CONFIGURED){
-		LOG_ERR("USB not ready");
-		return -EIO;
+	return 0;
+}
+
+int usb_midi_peak(const struct device *dev, const uint8_t **data, size_t len)
+{
+	int r;
+	const struct usb_midi_output_data *drv_data;
+	const struct usb_midi_io_config *const config = dev->config;
+
+	// Cannot read from an input
+	if (config->is_input) {
+		return -ENOTSUP;
 	}
 
-	if (len < 1){
-		return 0;
+	drv_data = dev->data;
+	if (r = k_sem_take(&drv_data->sem, K_FOREVER)){
+		return r;
+	}
+	r = ring_buf_get_claim(&drv_data->fifo, data, len);
+	return r;
+}
+
+int usb_midi_read_continue(const struct device *dev, size_t len)
+{
+	int r;
+	const struct usb_midi_output_data *drv_data;
+	const struct usb_midi_io_config *const config = dev->config;
+
+	// Cannot read from an input
+	if (config->is_input) {
+		return -ENOTSUP;
 	}
 
-	if (usb_transfer_is_busy(USB_MIDI_TO_HOST_ENDPOINT_ID)){
-		return -EBUSY;
-	}
-
-	packet = net_buf_alloc(&tx_pool, K_NO_WAIT);
-	if (packet == NULL) {
-		err = -ENOMEM;
-		goto fail;
-	}
-
-	consumed = 0;
-	for (written=0; written<packet->size && consumed<len; written+=4) {
-		size_t remaining = len - consumed;
-		if (data[consumed] == MIDI_SYSEX_START){
-			LOG_DBG("Entering SysEx");
-			drv_data->in_sysex = true;
-		}
-
-		if (! drv_data->in_sysex){
-			cin = cin_for_midi_status_byte(data[consumed]);
-		} else if (data[consumed] == MIDI_SYSEX_STOP){
-			cin = CIN_SYSEX_END_1B;
-			drv_data->in_sysex = false;
-			LOG_DBG("Leaving SysEx");
-		} else if (remaining > 1 && data[consumed+1] == MIDI_SYSEX_STOP){
-			cin = CIN_SYSEX_END_2B;
-			drv_data->in_sysex = false;
-			LOG_DBG("Leaving SysEx");
-		} else if (remaining > 2 && data[consumed+2] == MIDI_SYSEX_STOP){
-			cin = CIN_SYSEX_END_3B;
-			drv_data->in_sysex = false;
-			LOG_DBG("Leaving SysEx");
-		} else {
-			cin = CIN_SYSEX_START;
-		}
-
-		if (cin < 0){
-			LOG_ERR("No Code Index Number for midi status byte %02X", data[consumed]);
-			err = -EINVAL;
-			goto fail;
-		}
-
-		int datasize = CIN_DATASIZE[cin];
-		if (datasize < 0){
-			LOG_ERR("Unknown datasize for CIN %X", cin);
-			err = -ENOTSUP;
-			goto fail;
-		}
-
-		if (datasize > remaining){
-			LOG_ERR("Not enough data for midi status byte %02X (expected %d but got only %d)",
-				drv_data->in_sysex ? data[consumed] : 0xF0, datasize, len-consumed);
-			err = -EILSEQ;
-			goto fail;
-		}
-
-		packet->data[written] = (config->cable_number << 4) | cin;
-		memcpy(&packet->data[written+1], &data[consumed], datasize);
-		consumed += datasize;
-
-		LOG_USB_MIDI_PACKET(written, &packet->data[written]);
-	}
-
-	usb_transfer(USB_MIDI_TO_HOST_ENDPOINT_ID, packet->data, written,
-		     USB_TRANS_WRITE | USB_TRANS_NO_ZLP,
-		     usb_midi_transfer_done, packet);
-	return consumed;
-
-	fail:
-		if (packet != NULL){
-			net_buf_unref(packet);
-		}
-		return err;
+	drv_data = dev->data;
+	r = ring_buf_get_finish(&drv_data->fifo, len);
+	return r;
 }

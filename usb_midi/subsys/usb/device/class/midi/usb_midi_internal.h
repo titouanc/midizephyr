@@ -55,7 +55,7 @@ struct usb_ac_cs_descriptor {
 } __packed;
 
 // Class-Specific MS Interface Header Descriptor (midi10 , 6.1.2.1)
-struct usb_midi_cs_if_descriptor {
+struct usb_ms_cs_if_descriptor {
 	uint8_t bLength;
 	uint8_t bDescriptorType;
 	uint8_t bDescriptorSubtype;
@@ -64,7 +64,7 @@ struct usb_midi_cs_if_descriptor {
 } __packed;
 
 // MIDI IN Jack Descriptor (midi10, 6.1.2.2)
-struct usb_midi_in_jack_descriptor {
+struct usb_ms_in_jack_descriptor {
 	uint8_t bLength;
 	uint8_t bDescriptorType;
 	uint8_t bDescriptorSubtype;
@@ -75,7 +75,7 @@ struct usb_midi_in_jack_descriptor {
 
 // MIDI OUT Jack Descriptor (midi10, 6.1.2.3)
 // NB: only supports 1 input pin
-struct usb_midi_out_jack_descriptor {
+struct usb_ms_out_jack_descriptor {
 	uint8_t bLength;
 	uint8_t bDescriptorType;
 	uint8_t bDescriptorSubtype;
@@ -87,33 +87,8 @@ struct usb_midi_out_jack_descriptor {
 	uint8_t iJack;
 } __packed;
 
-// Standard MS Bulk Data Endpoint Descriptor (midi10, 6.2.1)
-struct usb_midi_std_ep_descriptor {
-	uint8_t bLength;
-	uint8_t bDescriptorType;
-	uint8_t bEndpointAddress;
-	uint8_t bmAttributes;
-	uint16_t wMaxPacketSize;
-	uint8_t bInterval;
-	uint8_t bRefresh;
-	uint8_t bSynchAddress;
-} __packed;
-
 // Class-Specific MS Bulk Data Endpoint Descriptor (midi10, 6.2.2)
-struct usb_midi_cs_ep_descriptor {
-	uint8_t bLength;
-	uint8_t bDescriptorType;
-	uint8_t bDescriptorSubtype;
-	uint8_t bNumEmbMIDIJack;
-	uint8_t BAAssocJackID1;
-} __packed;
-
-struct usb_midi_io_descriptor {
-	struct usb_midi_in_jack_descriptor in_jack;
-	struct usb_midi_out_jack_descriptor out_jack;
-} __packed;
-
-#define USB_MIDI_CS_EP_DESCRIPTOR_DECLARE(num_jacks) \
+#define USB_MS_CS_EP_DESCRIPTOR(num_jacks) \
 	struct { \
 	    	uint8_t bLength; \
 		uint8_t bDescriptorType; \
@@ -121,109 +96,5 @@ struct usb_midi_io_descriptor {
 		uint8_t bNumEmbMIDIJack; \
 		uint8_t BAAssocJackID[num_jacks]; \
 	} __packed
-
-#define USB_MIDI_IF_DESCRIPTOR_DECLARE(num_inputs, num_outputs) \
-	struct { \
-	    struct usb_if_descriptor std_ac; \
-	    struct usb_ac_cs_descriptor cs_ac; \
-	    struct usb_if_descriptor std_ms; \
-	    struct usb_midi_cs_if_descriptor cs_ms; \
-	    struct usb_midi_io_descriptor inputs[num_inputs]; \
-	    struct usb_midi_io_descriptor outputs[num_outputs]; \
-	    struct usb_midi_std_ep_descriptor std_ep_inputs; \
-	    USB_MIDI_CS_EP_DESCRIPTOR_DECLARE(num_inputs) cs_ep_inputs; \
-	    struct usb_midi_std_ep_descriptor std_ep_outputs; \
-	    USB_MIDI_CS_EP_DESCRIPTOR_DECLARE(num_outputs) cs_ep_outputs; \
-	} __packed
-
-#define USB_MIDI_IO_DESCRIPTOR(is_input, embedded_jack_id, external_jack_id) \
-	{\
-		.in_jack = { \
-			.bLength=6, \
-			.bDescriptorType=USB_DESC_CS_INTERFACE, \
-			.bDescriptorSubtype=MIDI_IN_JACK, \
-			.bJackType=COND_CODE_1(is_input, (JACK_EXTERNAL), (JACK_EMBEDDED)), \
-			.bJackID=COND_CODE_1(is_input, (external_jack_id), (embedded_jack_id)), \
-			.iJack=0, \
-		},\
-		.out_jack = { \
-			.bLength=9, \
-			.bDescriptorType=USB_DESC_CS_INTERFACE, \
-			.bDescriptorSubtype=MIDI_OUT_JACK, \
-			.bJackType=COND_CODE_0(is_input, (JACK_EXTERNAL), (JACK_EMBEDDED)), \
-			.bJackID=COND_CODE_0(is_input, (external_jack_id), (embedded_jack_id)), \
-			.bNrInputPins=1, \
-			.BASourceID1=COND_CODE_1(is_input, (external_jack_id), (embedded_jack_id)), \
-			.BASourcePin1=1, \
-			.iJack=0, \
-		},\
-	}
-
-#define USB_MIDI_CS_EP_DESCRIPTOR(...) \
-	{ \
-		.bLength = 4 + sizeof((uint8_t []) {__VA_ARGS__}), \
-		.bDescriptorType = USB_DESC_CS_ENDPOINT, \
-		.bDescriptorSubtype = MS_GENERAL, \
-		.bNumEmbMIDIJack = sizeof((uint8_t []) {__VA_ARGS__}), \
-		.BAAssocJackID = {__VA_ARGS__}, \
-	}
-
-#define USB_MIDI_IF_DESCRIPTOR_INIT(num_inputs, num_outputs) \
-	.std_ac = { \
-		.bLength = 9, \
-		.bDescriptorType = USB_DESC_INTERFACE, \
-		.bInterfaceNumber = 0, \
-		.bAlternateSetting = 0, \
-		.bNumEndpoints = 0, \
-		.bInterfaceClass = USB_BCC_AUDIO, \
-		.bInterfaceSubClass = USB_AUDIO_AUDIOCONTROL, \
-		.bInterfaceProtocol = 0, \
-		.iInterface = 0, \
-	}, \
-	.cs_ac = { \
-		.bLength = 9, \
-		.bDescriptorType = USB_DESC_CS_INTERFACE, \
-		.bDescriptorSubtype = USB_AUDIO_HEADER, \
-		.bcdADC = sys_cpu_to_le16(0x0100), \
-		.wTotalLength = sys_cpu_to_le16(9), \
-		.bInCollection = 1, \
-		.baInterfaceNr1 = 1, \
-	}, \
-	.std_ms = { \
-		.bLength = 9, \
-		.bDescriptorType = USB_DESC_INTERFACE, \
-		.bInterfaceNumber = 1, \
-		.bAlternateSetting = 0, \
-		.bNumEndpoints = 2, \
-		.bInterfaceClass = USB_BCC_AUDIO, \
-		.bInterfaceSubClass = USB_AUDIO_MIDISTREAMING, \
-		.bInterfaceProtocol = 0, \
-		.iInterface = 0 \
-	}, \
-	.cs_ms = { \
-		.bLength = 7, \
-		.bDescriptorType = USB_DESC_CS_INTERFACE, \
-		.bDescriptorSubtype = MS_HEADER, \
-		.bcdADC = sys_cpu_to_le16(0x0100), \
-		.wTotalLength = ( \
-			sizeof(USB_MIDI_IF_DESCRIPTOR_DECLARE(num_inputs, num_outputs)) \
-			- 2*sizeof(struct usb_if_descriptor) \
-			- sizeof(struct usb_ac_cs_descriptor) \
-		), \
-	}, \
-	.std_ep_inputs = {\
-		.bLength = 9, \
-		.bDescriptorType = USB_DESC_ENDPOINT, \
-		.bEndpointAddress = USB_MIDI_TO_HOST_ENDPOINT_ID, \
-		.bmAttributes = USB_DC_EP_BULK, \
-		.wMaxPacketSize = sys_cpu_to_le16(USB_MIDI_BULK_SIZE), \
-	},\
-	.std_ep_outputs = {\
-		.bLength = 9, \
-		.bDescriptorType = USB_DESC_ENDPOINT, \
-		.bEndpointAddress = USB_MIDI_FROM_HOST_ENDPOINT_ID, \
-		.bmAttributes = USB_DC_EP_BULK, \
-		.wMaxPacketSize = sys_cpu_to_le16(USB_MIDI_BULK_SIZE), \
-	}
 
 #endif

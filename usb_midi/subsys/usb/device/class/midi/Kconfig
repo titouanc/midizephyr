@@ -5,12 +5,21 @@
 
 config USB_DEVICE_MIDI
 	bool "USB MIDI Device Class Driver"
-	select NET_BUF
+	select RING_BUFFER
 	help
 		USB MIDI Device Class driver.
 		Device configuration is done via dt overlay.
 
 if USB_DEVICE_MIDI
+
+config USB_DEVICE_MIDI_NODELABEL_AS_NAME
+	bool "Use the devicetree nodelabel as MIDI i/o name"
+	default y
+	help
+		Each embedded input or output jack in the MIDIStreaming
+		device has an optional string descriptor.
+		Enable this option to set this string to the node label
+		of the usb midi input or output in the device tree
 
 module = USB_MIDI
 module-str = USB MIDI
