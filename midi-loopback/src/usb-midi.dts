@@ -1,0 +1,9 @@
+&zephyr_udc0 {
+	midi_in: midi-in {
+		compatible = "usb-midi-input";
+	};
+
+	midi_out: midi-out {
+		compatible = "usb-midi-output";
+	};
+};

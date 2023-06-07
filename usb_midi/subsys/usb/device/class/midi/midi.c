@@ -1,10 +1,12 @@
 #include <zephyr/kernel.h>
+#include <zephyr/drivers/uart.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/usb/usb_device.h>
 #include <zephyr/sys/ring_buffer.h>
 #include <usb_descriptor.h>
 
 #include <usb_midi.h>
+#include <usb_work_q.h>
 
 #include "usb_midi_internal.h"
 
@@ -308,71 +310,140 @@ USBD_DEFINE_CFG_DATA(primary) = {
 	.endpoint = ep_cfg,
 };
 
-struct usb_midi_io_config {
-	bool is_input;
-	struct usb_midi_input_descriptor *desc;
+struct usb_midi_input_config {
 	uint8_t cable_number;
-};
-
-struct usb_midi_output_data {
-	struct k_sem sem;
-	struct ring_buf fifo;
-	uint8_t fifo_data[16];
 };
 
 struct usb_midi_input_data {
 	bool in_sysex;
+	uint8_t n_pending;
+	uint8_t pending[3];
 };
 
-static int usb_midi_io_init(const struct device *dev)
+struct usb_midi_output_data {
+	struct ring_buf rxbuf;
+	uint8_t rxbuf_data[16];
+};
+
+
+K_SEM_DEFINE(usb_midi_txsem, 1, 1);
+RING_BUF_DECLARE(usb_midi_txbuf, USB_MIDI_BULK_SIZE);
+static void usb_midi_tx(struct k_work *work);
+static K_WORK_DELAYABLE_DEFINE(usb_midi_txwork, usb_midi_tx);
+
+
+static void usb_midi_tx_done(uint8_t ep, int size, void *userdata)
 {
-	int r = 0;
-	struct usb_midi_output_data *drv_data;
-	LOG_DBG("%s: cfg=%p data=%p", dev->name, dev->config, dev->data);
-	struct usb_midi_io_config *cfg = dev->config;
-
-	if (! cfg->is_input){
-		drv_data = dev->data;
-		ring_buf_init(&drv_data->fifo, sizeof(drv_data->fifo_data), drv_data->fifo_data);
-		r = k_sem_init(&drv_data->sem, 1, 1);
+	if (size > 0){
+		LOG_DBG("Transferred %d bytes", size);
+		ring_buf_get_finish(&usb_midi_txbuf, size);
+	} else {
+		LOG_ERR("Transfer failed (%d)", size);
+		ring_buf_get_finish(&usb_midi_txbuf, 0);
 	}
-	return r;
 
+	if (! ring_buf_is_empty(&usb_midi_txbuf)){
+		k_work_schedule_for_queue(&USB_WORK_Q, &usb_midi_txwork, K_NO_WAIT);
+	}
 }
 
+static void usb_midi_tx(struct k_work *work)
+{
+	const uint8_t *data;
+	size_t len;
+
+	if (usb_transfer_is_busy(USB_MIDI_TO_HOST_ENDPOINT_ID)){
+		LOG_DBG("Transfer is busy");
+		return;
+	}
+
+	len = ring_buf_get_claim(&usb_midi_txbuf, &data, USB_MIDI_BULK_SIZE);
+	if (! len){
+		LOG_DBG("Nothing to send");
+		return;
+	}
+
+	LOG_DBG("Transferring %d bytes to the host", len);
+	usb_transfer(USB_MIDI_TO_HOST_ENDPOINT_ID, data, len, USB_TRANS_WRITE,
+		     usb_midi_tx_done, NULL);
+}
+
+
+static int usb_midi_input_init(const struct device *dev)
+{
+	return 0;
+}
+
+static int usb_midi_output_init(const struct device *dev)
+{
+	struct usb_midi_output_data *drv_data = dev->data;
+	ring_buf_init(&drv_data->rxbuf, sizeof(drv_data->rxbuf_data), drv_data->rxbuf_data);
+	return 0;
+}
+
+static int usb_midi_output_poll_in(const struct device *dev, unsigned char *c)
+{
+	const struct usb_midi_output_data *drv_data = dev->data;
+
+	if (ring_buf_is_empty(&drv_data->rxbuf)){
+		return -1;
+	}
+	ring_buf_get(&drv_data->rxbuf, c, 1);
+	return 0;
+}
+
+static void usb_midi_output_poll_out(const struct device *dev, unsigned char c)
+{
+	ARG_UNUSED(dev);
+	ARG_UNUSED(c);
+}
+
+static void usb_midi_input_poll_out(const struct device *dev, unsigned char c)
+{
+	const struct usb_midi_input_config *const config = dev->config;
+	uint8_t packet[4] = {config->cable_number << 4 | 0x0F, c};
+
+	k_sem_take(&usb_midi_txsem, K_FOREVER);
+	ring_buf_put(&usb_midi_txbuf, packet, 4);
+	k_sem_give(&usb_midi_txsem);
+	k_work_schedule_for_queue(&USB_WORK_Q, &usb_midi_txwork, K_MSEC(1));
+}
+
+static const struct uart_driver_api usb_midi_input_api = {
+	.poll_out = usb_midi_input_poll_out,
+};
+
+static const struct uart_driver_api usb_midi_output_api = {
+	.poll_out = usb_midi_output_poll_out,
+	.poll_in  = usb_midi_output_poll_in,
+};
+
 #define DEFINE_USB_MIDI_INPUT_DEVICE(index, _) \
-	static const struct usb_midi_io_config usb_midi_input##index##_config = { \
-		.is_input = true, \
-		.desc = &midistreaming_cfg.inputs[index], \
+	static const struct usb_midi_input_config usb_midi_input##index##_config = { \
 		.cable_number = index, \
 	}; \
 	static struct usb_midi_input_data usb_midi_input##index##_data; \
 	DEVICE_DT_DEFINE(DT_INST(index, COMPAT_MIDI_INPUT),\
-		         usb_midi_io_init, \
-		         NULL,\
-		         &usb_midi_input##index##_data, \
-		         &usb_midi_input##index##_config,        \
+			 usb_midi_input_init, \
+			 NULL,\
+			 &usb_midi_input##index##_data, \
+			 &usb_midi_input##index##_config, \
 			 APPLICATION, \
 			 CONFIG_KERNEL_INIT_PRIORITY_DEVICE, \
-			 NULL);
+			 &usb_midi_input_api);
 
 LISTIFY(MIDI_INPUT_DEVICE_COUNT, DEFINE_USB_MIDI_INPUT_DEVICE, ())
 
 #define DEFINE_USB_MIDI_OUTPUT_DEVICE(index, _) \
-	static const struct usb_midi_io_config usb_midi_output##index##_config = { \
-		.is_input = false, \
-		.desc = &midistreaming_cfg.outputs[index], \
-		.cable_number = index, \
-	}; \
 	static struct usb_midi_output_data usb_midi_output##index##_data; \
 	DEVICE_DT_DEFINE(DT_INST(index, COMPAT_MIDI_OUTPUT), \
-			 usb_midi_io_init, \
-		         NULL, \
-		         &usb_midi_output##index##_data, \
-		         &usb_midi_output##index##_config,        \
+			 usb_midi_output_init, \
+			 NULL, \
+			 &usb_midi_output##index##_data, \
+			 NULL, \
 			 APPLICATION, \
 			 CONFIG_KERNEL_INIT_PRIORITY_DEVICE, \
-			 NULL);
+			 &usb_midi_output_api);
 
 LISTIFY(MIDI_OUTPUT_DEVICE_COUNT, DEFINE_USB_MIDI_OUTPUT_DEVICE, ())
 
@@ -400,9 +471,6 @@ static const int CIN_DATASIZE[16] = {-1, -1, 2, 3, 3, 1, 2, 3, 3, 3, 3, 3, 2, 2,
 static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 {
 	uint32_t read = 0;
-	size_t len[MIDI_OUTPUT_DEVICE_COUNT] = {0};
-	struct net_buf *per_dev[MIDI_OUTPUT_DEVICE_COUNT] = {NULL};
-
 	uint8_t buf[USB_MIDI_BULK_SIZE];
 	int r = usb_ep_read_wait(USB_MIDI_FROM_HOST_ENDPOINT_ID, buf, sizeof(buf), &read);
 	if (r){
@@ -422,24 +490,16 @@ static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 
 		const struct device *dev = outputs[cable_number];
 		struct usb_midi_output_data *out = (struct usb_midi_output_data *) dev->data;
-		r = ring_buf_put(&out->fifo, &buf[i+1], datasize);
+		r = ring_buf_put(&out->rxbuf, &buf[i+1], datasize);
 		if (r <= 0){
 			LOG_ERR("[%s] ring_buf_put -> %d", dev->name, r);
-		} else {
-			LOG_DBG("[%s] ring_buf_space_get: %d", dev->name, ring_buf_space_get(&out->fifo));
 		}
-		k_sem_give(&out->sem);
 		LOG_USB_MIDI_PACKET(dev, i/4, &buf[i]);
 	}
 	r = usb_ep_read_continue(USB_MIDI_FROM_HOST_ENDPOINT_ID);
 	if (r){
 		LOG_ERR("Cannot pursue reading from USB");
 	}
-}
-
-static void usb_midi_transfer_done(uint8_t ep, int size, void *priv)
-{
-	net_buf_unref((struct net_buf *) priv);
 }
 
 static inline int cin_for_midi_status_byte(uint8_t status_byte)
@@ -465,53 +525,4 @@ static inline int cin_for_midi_status_byte(uint8_t status_byte)
 	}
 
 	return -1;
-}
-
-int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len)
-{
-	int r;
-	const struct usb_midi_input_data *drv_data;
-	const struct usb_midi_io_config *const config = dev->config;
-
-	// Cannot write to an output
-	if (! config->is_input) {
-		return -ENOTSUP;
-	}
-
-	return 0;
-}
-
-int usb_midi_peak(const struct device *dev, const uint8_t **data, size_t len)
-{
-	int r;
-	const struct usb_midi_output_data *drv_data;
-	const struct usb_midi_io_config *const config = dev->config;
-
-	// Cannot read from an input
-	if (config->is_input) {
-		return -ENOTSUP;
-	}
-
-	drv_data = dev->data;
-	if (r = k_sem_take(&drv_data->sem, K_FOREVER)){
-		return r;
-	}
-	r = ring_buf_get_claim(&drv_data->fifo, data, len);
-	return r;
-}
-
-int usb_midi_read_continue(const struct device *dev, size_t len)
-{
-	int r;
-	const struct usb_midi_output_data *drv_data;
-	const struct usb_midi_io_config *const config = dev->config;
-
-	// Cannot read from an input
-	if (config->is_input) {
-		return -ENOTSUP;
-	}
-
-	drv_data = dev->data;
-	r = ring_buf_get_finish(&drv_data->fifo, len);
-	return r;
 }
