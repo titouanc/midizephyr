@@ -7,8 +7,8 @@ config USB_DEVICE_MIDI
 	bool "USB MIDI Device Class Driver"
 	select RING_BUFFER
 	help
-		USB MIDI Device Class driver.
-		Device configuration is done via dt overlay.
+	  USB MIDI Device Class driver.
+	  Device configuration is done via dt overlay.
 
 if USB_DEVICE_MIDI
 
@@ -16,10 +16,23 @@ config USB_DEVICE_MIDI_NODELABEL_AS_NAME
 	bool "Use the devicetree nodelabel as MIDI i/o name"
 	default y
 	help
-		Each embedded input or output jack in the MIDIStreaming
-		device has an optional string descriptor.
-		Enable this option to set this string to the node label
-		of the usb midi input or output in the device tree
+	  Each embedded input or output jack in the MIDIStreaming
+	  device has an optional string descriptor.
+	  Enable this option to set this string to the node label
+	  of the usb midi input or output in the device tree
+
+config USB_DEVICE_MIDI_RINGBUF_SIZE
+	int "USB MIDI ring buffer size"
+	default 128
+	help
+	  Size of the ring buffers for input/outputs
+
+config USB_DEVICE_MIDI_BULK_EP_SIZE
+	int
+	default 512 if USB_DC_HAS_HS_SUPPORT
+	default 64
+	help
+	  Max transfer size on bulk USB endpoints
 
 module = USB_MIDI
 module-str = USB MIDI

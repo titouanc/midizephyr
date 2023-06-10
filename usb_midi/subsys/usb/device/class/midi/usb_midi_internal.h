@@ -4,7 +4,6 @@
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/usb/class/usb_audio.h>
 
-#define USB_MIDI_BULK_SIZE USB_MAX_FS_BULK_MPS
 #define USB_MIDI_FROM_HOST_ENDPOINT_ID 0x01
 #define USB_MIDI_TO_HOST_ENDPOINT_ID   0x81
 
@@ -42,7 +41,7 @@
 #define CIN_PROGRAM_CHANGE 0xC
 #define CIN_CHAN_PRESSURE  0xD
 #define CIN_PITCH_BEND     0xE
-#define CIN_SYSTEM_COMMON  0xF
+#define CIN_SYS_COMMON_1B  0xF
 
 struct usb_ac_cs_descriptor {
 	uint8_t bLength;

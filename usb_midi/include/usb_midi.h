@@ -34,8 +34,6 @@
 #define MIDI_CONTROL_CHANGE(chan, cc, value) \
 	MIDI_COMMAND_3B(MIDI_CMD_CONTROL_CHANGE, chan, cc, value)
 
-typedef void (*usb_midi_rx_callback)(const struct device *dev, const uint8_t *data, size_t len);
-
 /**
  * @brief      Get the number of MIDI data bytes that follow a given a leading
  *             MIDI Status byte
@@ -75,18 +73,5 @@ static inline int midi_datasize(const uint8_t status_byte)
 		return -EINVAL;
 	}
 }
-
-/**
- * @brief      Send MIDI data to the host
- * @param[in]  dev   A MIDI input
- * @param[in]  data  The data to send
- * @param[in]  len   The number of data bytes to send
- * @return     The number of bytes sent, or a negative number on error
- */
-int usb_midi_write(const struct device *dev, const uint8_t *data, size_t len);
-
-int usb_midi_peak(const struct device *dev, const uint8_t **data, size_t len);
-
-int usb_midi_read_continue(const struct device *dev, size_t n);
 
 #endif

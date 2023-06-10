@@ -1,3 +1,4 @@
+import re
 from os import getenv
 from subprocess import check_call
 
@@ -19,21 +20,6 @@ MIDI_MSGS = {
     "Program Change": "C001",
     "Channel pressure": "D001",
     "Pitch Bend": "E00102",
-    # System Common Messages
-    "SysEx empty": "F0F7",
-    "SysEx 1B": "F001F7",
-    "SysEx 2B": "F00102F7",
-    "SysEx 3B": "F0010203F7",
-    "SysEx 4B": "F001020304F7",
-    "SysEx 5B": "F00102030405F7",
-    "SysEx 10B": "F00102030405060708090AF7",
-    "SysEx empty x2": "F0F7 F0F7",
-    "SysEx 1B x2": "F001F7 F001F7",
-    "SysEx 2B x2": "F00102F7 F00102F7",
-    "SysEx 3B x2": "F0010203F7 F0010203F7",
-    "SysEx 4B x2": "F001020304F7 F001020304F7",
-    "SysEx 5B x2": "F00102030405F7 F00102030405F7",
-    "SysEx 10B x2": "F00102030405060708090AF7 F00102030405060708090AF7",
     "Time code quarter frame": "F101",
     "Song position pointer": "F20102",
     "Song select": "F301",
@@ -45,6 +31,9 @@ MIDI_MSGS = {
     "Stop": "FC",
     "Active Sensing": "FE",
     "Reset": "FF",
+} | {
+    f"SysEx {n}B": "F0" + ''.join('%02X' % (i+1) for i in range(n)) + "F7"
+    for n in range(25)
 }
 
 
@@ -62,7 +51,10 @@ def listener():
 @pytest.mark.parametrize("midi", MIDI_MSGS.values(), ids=MIDI_MSGS.keys())
 def test_loopback(midi, listener):
     send_midi(midi)
-    expected = midi.replace(" ", "\r\n")
+    expected = "\r\n".join(
+        re.sub(r"([0-9A-F]{2})", "\\1 ", packet).strip()
+        for packet in midi.split(" ")
+    )
 
     try:
         listener.expect(expected)
@@ -72,10 +64,15 @@ def test_loopback(midi, listener):
 
     # Leverage pytest diff instead of pexpect timeout error
     if errored:
-        received = listener.before.strip().decode()
+        received = listener.before.decode().strip()
         assert received.splitlines() == expected.splitlines()
 
 
-def test_loopback_all_at_once(listener):
-    whole_midi = " ".join(MIDI_MSGS.values())
-    test_loopback(whole_midi, listener)
+@pytest.mark.parametrize("n_packets", range(1, 6))
+def test_multiple_packets(n_packets, listener):
+    all_packets = list(MIDI_MSGS.values())
+
+    i = 0
+    while i < len(all_packets):
+        test_loopback(" ".join(all_packets[i:n_packets+i]), listener)
+        i += n_packets

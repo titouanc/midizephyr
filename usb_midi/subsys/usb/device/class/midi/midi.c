@@ -201,7 +201,7 @@ USBD_CLASS_DESCR_DEFINE(primary, 0) struct usb_ms_if_descriptor midistreaming_cf
 		.bDescriptorType = USB_DESC_ENDPOINT,
 		.bEndpointAddress = USB_MIDI_TO_HOST_ENDPOINT_ID,
 		.bmAttributes = USB_DC_EP_BULK,
-		.wMaxPacketSize = sys_cpu_to_le16(USB_MIDI_BULK_SIZE),
+		.wMaxPacketSize = sys_cpu_to_le16(CONFIG_USB_DEVICE_MIDI_BULK_EP_SIZE),
 	},
 	.cs_ep_inputs = {
 		.bLength = sizeof(USB_MS_CS_EP_DESCRIPTOR(MIDI_INPUT_DEVICE_COUNT)),
@@ -217,7 +217,7 @@ USBD_CLASS_DESCR_DEFINE(primary, 0) struct usb_ms_if_descriptor midistreaming_cf
 		.bDescriptorType = USB_DESC_ENDPOINT,
 		.bEndpointAddress = USB_MIDI_FROM_HOST_ENDPOINT_ID,
 		.bmAttributes = USB_DC_EP_BULK,
-		.wMaxPacketSize = sys_cpu_to_le16(USB_MIDI_BULK_SIZE),
+		.wMaxPacketSize = sys_cpu_to_le16(CONFIG_USB_DEVICE_MIDI_BULK_EP_SIZE),
 	},
 	.cs_ep_outputs = {
 		.bLength = sizeof(USB_MS_CS_EP_DESCRIPTOR(MIDI_OUTPUT_DEVICE_COUNT)),
@@ -314,20 +314,29 @@ struct usb_midi_input_config {
 	uint8_t cable_number;
 };
 
+enum usb_midi_input_state {
+	IDLE,
+	NEED_1B,
+	NEED_2B,
+	COMPLETE,
+	IN_SYSEX,
+	COMPLETE_SYSEX,
+};
+
 struct usb_midi_input_data {
-	bool in_sysex;
+	enum usb_midi_input_state state;
 	uint8_t n_pending;
 	uint8_t pending[3];
 };
 
 struct usb_midi_output_data {
 	struct ring_buf rxbuf;
-	uint8_t rxbuf_data[16];
+	uint8_t rxbuf_data[CONFIG_USB_DEVICE_MIDI_RINGBUF_SIZE];
 };
 
 
 K_SEM_DEFINE(usb_midi_txsem, 1, 1);
-RING_BUF_DECLARE(usb_midi_txbuf, USB_MIDI_BULK_SIZE);
+RING_BUF_DECLARE(usb_midi_txbuf, MIDI_INPUT_DEVICE_COUNT * CONFIG_USB_DEVICE_MIDI_RINGBUF_SIZE);
 static void usb_midi_tx(struct k_work *work);
 static K_WORK_DELAYABLE_DEFINE(usb_midi_txwork, usb_midi_tx);
 
@@ -357,7 +366,7 @@ static void usb_midi_tx(struct k_work *work)
 		return;
 	}
 
-	len = ring_buf_get_claim(&usb_midi_txbuf, &data, USB_MIDI_BULK_SIZE);
+	len = ring_buf_get_claim(&usb_midi_txbuf, &data, CONFIG_USB_DEVICE_MIDI_BULK_EP_SIZE);
 	if (! len){
 		LOG_DBG("Nothing to send");
 		return;
@@ -398,15 +407,92 @@ static void usb_midi_output_poll_out(const struct device *dev, unsigned char c)
 	ARG_UNUSED(c);
 }
 
+static inline void usb_midi_input_flush_pending(const struct device *dev)
+{
+	const struct usb_midi_input_config *const config = dev->config;
+	struct usb_midi_input_data *drv_data = dev->data;
+	uint8_t cmd = drv_data->pending[0];
+	uint8_t prefix_byte = config->cable_number << 4;
+
+	if (drv_data->state == COMPLETE){
+		if (MIDI_CMD_NOTE_OFF <= cmd && cmd < MIDI_CMD_SYSTEM_COMMON){
+			prefix_byte |= cmd >> 4;
+		} else if (drv_data->n_pending == 2) {
+			prefix_byte |= CIN_SYS_COMMON_2B;
+		} else if (drv_data->n_pending == 3) {
+			prefix_byte |= CIN_SYS_COMMON_3B;
+		} else {
+			prefix_byte |= CIN_SYS_COMMON_1B;
+		}
+	} else if (drv_data->state == IN_SYSEX) {
+		prefix_byte |= CIN_SYSEX_START;
+	} else if (drv_data->state == COMPLETE_SYSEX) {
+		switch (drv_data->n_pending){
+		case 1: prefix_byte |= CIN_SYSEX_END_1B; break;
+		case 2: prefix_byte |= CIN_SYSEX_END_2B; break;
+		case 3: prefix_byte |= CIN_SYSEX_END_3B; break;
+		}
+	}
+
+	LOG_DBG(
+		"[%s] %02hhX %02hhx %02hhx %02hhx",
+		dev->name,
+		prefix_byte, drv_data->pending[0],
+		drv_data->pending[1], drv_data->pending[2]
+	);
+
+	k_sem_take(&usb_midi_txsem, K_FOREVER);
+	ring_buf_put(&usb_midi_txbuf, &prefix_byte, 1);
+	ring_buf_put(&usb_midi_txbuf, drv_data->pending, 3);
+	k_sem_give(&usb_midi_txsem);
+	k_work_schedule_for_queue(&USB_WORK_Q, &usb_midi_txwork, K_NO_WAIT);
+	drv_data->n_pending = 0;
+}
+
 static void usb_midi_input_poll_out(const struct device *dev, unsigned char c)
 {
 	const struct usb_midi_input_config *const config = dev->config;
-	uint8_t packet[4] = {config->cable_number << 4 | 0x0F, c};
+	struct usb_midi_input_data *drv_data = dev->data;
+	int datasize;
 
-	k_sem_take(&usb_midi_txsem, K_FOREVER);
-	ring_buf_put(&usb_midi_txbuf, packet, 4);
-	k_sem_give(&usb_midi_txsem);
-	k_work_schedule_for_queue(&USB_WORK_Q, &usb_midi_txwork, K_MSEC(1));
+	if (drv_data->state == IDLE){
+		if (! (c & 0x80)){
+			// Not a start byte; skip
+			return;
+		}
+		datasize = midi_datasize(c);
+		if (c == MIDI_SYSEX_START){
+			drv_data->state = IN_SYSEX;
+		} else {
+			switch (datasize){
+			case 2: drv_data->state = NEED_2B; break;
+			case 1: drv_data->state = NEED_1B; break;
+			case 0: drv_data->state = COMPLETE; break;
+			default: return;
+			}
+		}
+		drv_data->pending[0] = c;
+		drv_data->n_pending = 1;
+	} else {
+		drv_data->pending[drv_data->n_pending] = c;
+		drv_data->n_pending++;
+		switch (drv_data->state){
+		case NEED_2B: drv_data->state = NEED_1B; break;
+		case NEED_1B: drv_data->state = COMPLETE; break;
+		case IN_SYSEX:
+			if (c == MIDI_SYSEX_STOP){
+				drv_data->state = COMPLETE_SYSEX;
+				break;
+			}
+		}
+	}
+
+	if (drv_data->state == IN_SYSEX && drv_data->n_pending == 3){
+		usb_midi_input_flush_pending(dev);
+	} else if (drv_data->state == COMPLETE || drv_data->state == COMPLETE_SYSEX){
+		usb_midi_input_flush_pending(dev);
+		drv_data->state = IDLE;
+	}
 }
 
 static const struct uart_driver_api usb_midi_input_api = {
@@ -471,7 +557,7 @@ static const int CIN_DATASIZE[16] = {-1, -1, 2, 3, 3, 1, 2, 3, 3, 3, 3, 3, 2, 2,
 static void usb_midi_rx(uint8_t ep, enum usb_dc_ep_cb_status_code ep_status)
 {
 	uint32_t read = 0;
-	uint8_t buf[USB_MIDI_BULK_SIZE];
+	uint8_t buf[CONFIG_USB_DEVICE_MIDI_BULK_EP_SIZE];
 	int r = usb_ep_read_wait(USB_MIDI_FROM_HOST_ENDPOINT_ID, buf, sizeof(buf), &read);
 	if (r){
 		LOG_ERR("USB read error %d", r);
