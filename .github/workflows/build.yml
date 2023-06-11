@@ -34,7 +34,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install --no-install-recommends -y wget gcc-arm-none-eabi python3-pip ninja-build
+        sudo apt install --no-install-recommends -y wget gcc-arm-none-eabi gcc-multilib ninja-build
 
     - name: Install cmake 3.21
       working-directory: /usr
