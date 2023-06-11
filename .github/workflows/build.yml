@@ -98,7 +98,9 @@ jobs:
       with:
         name: midi-loopback-native_posix
 
-    - name: Run midi-loopback
+    - run: chmod +x zephyr.exe
+
+    - name: Start midi-loopback
       id: startapp
       run: |
         ./zephyr.exe &
