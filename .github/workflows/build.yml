@@ -81,7 +81,7 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: ${{ matrix.app }}-${{ matrix.board }}.bin
-        path: build/zephyr/zephyr.bin
+        path: build/zephyr/${{ matrix.executable }}
 
   release:
     name: Release
@@ -110,6 +110,6 @@ jobs:
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ steps.get_release.outputs.upload_url }}
-        asset_path: zephyr.bin
+        asset_path: ${{ matrix.executable }}
         asset_name: ${{ matrix.app }}-${{ matrix.board }}.bin
         asset_content_type: application/octet-stream
