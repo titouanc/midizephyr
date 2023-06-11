@@ -8,9 +8,7 @@ on:
 env:
   BUILD_MATRIX: >
     {"include": [
-    {"app": "midizephyr", "board": "nucleo_f429zi"},
-    {"app": "kinesta", "board": "nucleo_f429zi"},
-    {"app": "midi-loopback", "board": "native_posix"}
+    {"app": "midi-loopback", "board": "native_posix", "executable": "zephyr.exe"}
     ]}
 
 jobs:
