@@ -84,6 +84,7 @@ jobs:
   test-usb-midi:
     name: Test USB-MIDI loopback
     runs-on: ubuntu-latest
+    needs: [build]
 
     steps:
     - uses: actions/checkout@v3
