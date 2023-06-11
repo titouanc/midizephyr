@@ -78,8 +78,33 @@ jobs:
 
     - uses: actions/upload-artifact@v3
       with:
-        name: ${{ matrix.app }}-${{ matrix.board }}.bin
+        name: ${{ matrix.app }}-${{ matrix.board }}
         path: build/zephyr/${{ matrix.executable }}
+
+  test-usb-midi:
+    name: Test USB-MIDI loopback
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+        cache: pip
+
+    - uses: actions/download-artifact@v3
+      with:
+        name: midi-loopback-native_posix
+
+    - name: Run midi-loopback
+      id: startapp
+      run: |
+        ./zephyr.exe &
+        echo pid=$! >> $GITHUB_OUTPUT
+
+    - name: Stop midi-loopback
+      run: kill ${{ steps.startapp.outputs.pid }}
 
   release:
     name: Release
@@ -101,7 +126,7 @@ jobs:
 
     - uses: actions/download-artifact@v3
       with:
-        name: ${{ matrix.app }}-${{ matrix.board }}.bin
+        name: ${{ matrix.app }}-${{ matrix.board }}
 
     - name: Publish ${{ matrix.app }} for ${{ matrix.board }} to Github release
       id: upload_release_firmware
