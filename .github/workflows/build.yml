@@ -1,14 +1,17 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
+  push: {}
   release:
     types: [created]
+
+env:
+  BUILD_MATRIX: >
+    {"include": [
+    {"app": "midizephyr", "board": "nucleo_f429zi"},
+    {"app": "kinesta", "board": "nucleo_f429zi"},
+    {"app": "midi-loopback", "board": "native_posix"}
+    ]}
 
 jobs:
   discover:
@@ -18,7 +21,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
 
     steps:
-    - run: echo '::set-output name=matrix::["midizephyr", "kinesta"]'
+    - run: echo matrix='${{ env.BUILD_MATRIX }}' >> $GITHUB_OUTPUT
       id: set-matrix
 
   build:
@@ -27,14 +30,13 @@ jobs:
     needs:
     - discover
     strategy:
-      matrix:
-        target: ${{ fromJson(needs.discover.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
 
     steps:
     - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install --no-install-recommends -y wget gcc-arm-none-eabi python3-pip ninja-build
+        sudo apt install --no-install-recommends -y wget gcc-arm-none-eabi gcc-multilib ninja-build
 
     - name: Install cmake 3.21
       working-directory: /usr
@@ -48,6 +50,11 @@ jobs:
       with:
         submodules: true
 
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+        cache: pip
+
     - name: Install Python dependencies
       run: pip install -r zephyr/scripts/requirements-base.txt
 
@@ -56,29 +63,25 @@ jobs:
       env:
         cache-name: cache-zephyr-modules
       with:
+        key: ${{ runner.os }}-${{ hashFiles('.gitmodules') }}
         path: |
           modules/
           tools/
           bootloader/
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('.gitmodules') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
 
     - name: West update
       run: west update
 
-    - name: Build ${{ matrix.target }} for nucleo f429zi
-      run: west build -b nucleo_f429zi ${{ matrix.target }}
+    - name: Build ${{ matrix.app }} for ${{ matrix.board }}
+      run: west build -b ${{ matrix.board }} ${{ matrix.app }}
       env:
         GNUARMEMB_TOOLCHAIN_PATH: /usr
         ZEPHYR_TOOLCHAIN_VARIANT: gnuarmemb
 
     - uses: actions/upload-artifact@v3
       with:
-        name: ${{ matrix.target }}.bin
-        path: build/zephyr/zephyr.bin
+        name: ${{ matrix.app }}-${{ matrix.board }}
+        path: build/zephyr/${{ matrix.executable }}
 
   release:
     name: Release
@@ -89,8 +92,7 @@ jobs:
     - build
 
     strategy:
-      matrix:
-        target: ${{ fromJson(needs.discover.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
 
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -101,13 +103,13 @@ jobs:
 
     - uses: actions/download-artifact@v3
       with:
-        name: ${{ matrix.target }}.bin
+        name: ${{ matrix.app }}-${{ matrix.board }}
 
-    - name: Publish ${{ matrix.target }} to Github release
+    - name: Publish ${{ matrix.app }} for ${{ matrix.board }} to Github release
       id: upload_release_firmware
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ steps.get_release.outputs.upload_url }}
-        asset_path: zephyr.bin
-        asset_name: ${{ matrix.target }}.bin
+        asset_path: ${{ matrix.executable }}
+        asset_name: ${{ matrix.app }}-${{ matrix.board }}.bin
         asset_content_type: application/octet-stream
