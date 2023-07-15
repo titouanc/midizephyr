@@ -12,7 +12,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(kfb);
 
-#define TOF_SAMPLING_FREQ 30
+#define TOF_SAMPLING_FREQ 25
 
 #define KFB_FROM_DT(inst) \
     {\
@@ -65,6 +65,11 @@ static int kfb_update_distance(kinesta_functional_block *self)
     int r = kfb_measure_distance_cm(self, &measured_distance_cm);
     if (r){
         return r;
+    }
+
+    // This is definitely a reading error !
+    if (measured_distance_cm < 1){
+        return;
     }
 
     if (self->is_in_tracking_zone){

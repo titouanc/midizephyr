@@ -2,7 +2,7 @@
 #define CONFIG_H
 
 /* Vertical size of the tracking zone above a distance sensor, in cm */
-#define DISTANCE_SENSOR_TRACKING_ZONE_CM 60
+#define DISTANCE_SENSOR_TRACKING_ZONE_CM 55
 
 /* Vertical size of the hysteresis to enter/leave the tracking zone, in cm */
 #define DISTANCE_SENSOR_TRACKING_HYSTERESIS_CM 5
