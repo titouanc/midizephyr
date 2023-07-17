@@ -32,6 +32,8 @@ const size_t N_KFBS = ARRAY_SIZE(__kfbs__);
 
 kinesta_functional_block *kfbs = __kfbs__;
 
+#define WHITE_FOR_TOUCH color_rgbf(0.93, 1.0, 0.93)
+
 static int kfb_measure_distance_cm(kinesta_functional_block *self, double *res)
 {
     int r = sensor_sample_fetch(self->tof);
@@ -107,7 +109,7 @@ static int kfb_update_primary_touchpad(kinesta_functional_block *self)
     color_t color;
     if (self->is_primary_pad_touched){
         // Pad touched: white
-        color = COLOR_WHITE;
+        color = WHITE_FOR_TOUCH;
         if (! self->was_primary_pad_touched){
             self->is_frozen = ! self->is_frozen;
         }
@@ -142,7 +144,7 @@ static int kfb_update_secondary_touchpad(kinesta_functional_block *self)
         kinesta_midi_out(pkt);
     }
 
-    color_t color = self->is_secondary_pad_touched ? COLOR_WHITE : 0;
+    color_t color = self->is_secondary_pad_touched ? WHITE_FOR_TOUCH : 0;
     touchpad_set_color(self->secondary_touchpad, color);
     return 0;
 }
