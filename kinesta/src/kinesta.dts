@@ -319,7 +319,7 @@
 
     slice1 {
         compatible = "kinesta,functional-block";
-        midi-cc-group = <0x10>;
+        midi-cc-group = <0x50>;
 
         primary-touchpad = <&touchpad1>;
         secondary-touchpad = <&touchpad2>;
@@ -329,7 +329,7 @@
 
     slice2 {
         compatible = "kinesta,functional-block";
-        midi-cc-group = <0x20>;
+        midi-cc-group = <0x60>;
 
         primary-touchpad = <&touchpad3>;
         secondary-touchpad = <&touchpad4>;
@@ -339,7 +339,7 @@
 
     slice3 {
         compatible = "kinesta,functional-block";
-        midi-cc-group = <0x30>;
+        midi-cc-group = <0x70>;
 
         primary-touchpad = <&touchpad5>;
         secondary-touchpad = <&touchpad6>;
