@@ -78,7 +78,7 @@ jobs:
         GNUARMEMB_TOOLCHAIN_PATH: /usr
         ZEPHYR_TOOLCHAIN_VARIANT: gnuarmemb
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.target }}.bin
         path: build/zephyr/zephyr.bin
