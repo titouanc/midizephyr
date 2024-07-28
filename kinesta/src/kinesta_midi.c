@@ -44,6 +44,11 @@ static bool kinesta_midi_usb_enabled = true;
 
 void kinesta_midi_out(const uint8_t midi_pkt[3])
 {
+    #warning PATCH For defective secondary pad on slice 3 active !
+    // Secondary pad of the 3rd slice is broken, let's ignore midi transmission for now
+    if (midi_pkt[0] == 0xb0 && midi_pkt[1] == 0x32){
+        return;
+    }
     for (size_t i=0; i<N_MIDI_DINS; i++){
         kinesta_midi_din_transmit(&midi_dins[i], midi_pkt);
     }
