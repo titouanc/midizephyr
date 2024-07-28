@@ -153,8 +153,8 @@
     tof2: vl53l0x@31 {
         compatible = "st,vl53l0x";
         reg = <0x31>;
-        // interrupt-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;
-        xshut-gpios = <&gpiob 0 GPIO_ACTIVE_HIGH>;
+        //interrupt-gpios = <&gpiob 0 GPIO_ACTIVE_HIGH>;
+        xshut-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;
     };
 };
 
